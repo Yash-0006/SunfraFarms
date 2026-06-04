@@ -1,65 +1,162 @@
-import Image from "next/image";
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { query } from '@/lib/db';
+import { parseToTotalEggs, normalizeQuantity, formatQuantityDisplay } from '@/lib/quantity-utils';
 
-export default function Home() {
+export const dynamic = 'force-dynamic';
+
+export default async function Home() {
+  let totalProductionQty = 0;
+  let totalSalesQty = 0;
+
+  try {
+    const prodRows: any = await query('SELECT quantity FROM egg_production');
+    const totalProdEggs = prodRows.reduce((acc: number, row: any) => acc + parseToTotalEggs(row.quantity), 0);
+    totalProductionQty = normalizeQuantity(totalProdEggs);
+
+    const salesRows: any = await query('SELECT quantity FROM egg_sale');
+    const totalSalesEggs = salesRows.reduce((acc: number, row: any) => acc + parseToTotalEggs(row.quantity), 0);
+    totalSalesQty = normalizeQuantity(totalSalesEggs);
+  } catch (error) {
+    console.error('Failed to fetch metrics', error);
+  }
+
+  const stockEggs = parseToTotalEggs(totalProductionQty) - parseToTotalEggs(totalSalesQty);
+  const currentStockQty = normalizeQuantity(stockEggs);
+
+  const stats = [
+    {
+      label: 'Total Production',
+      sublabel: 'All-time egg collection',
+      value: formatQuantityDisplay(totalProductionQty),
+      unit: 'Trays',
+      href: '/production',
+      linkLabel: 'Manage Production',
+      bg: 'var(--green-light)',
+      accent: '#4A7C2F',
+    },
+    {
+      label: 'Total Sales',
+      sublabel: 'All-time eggs sold',
+      value: formatQuantityDisplay(totalSalesQty),
+      unit: 'Trays',
+      href: '/sales',
+      linkLabel: 'Manage Sales',
+      bg: 'var(--champagne)',
+      accent: '#A05A2C',
+    },
+    {
+      label: 'Current Stock',
+      sublabel: 'Production minus sales',
+      value: formatQuantityDisplay(currentStockQty),
+      unit: 'Trays',
+      href: null,
+      linkLabel: null,
+      bg: 'var(--sky)',
+      accent: '#1A6E8E',
+    },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      {/* Page header */}
+      <div style={{ marginBottom: '28px' }} className="animate-fadeup">
+        <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Egg Godown
+        </h2>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+          Overview of your farm's egg production and sales.
+        </p>
+      </div>
+
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+        {stats.map((s, i) => (
+          <div
+            key={s.label}
+            className={`animate-fadeup-${i + 2}`}
+            style={{
+              background: s.bg,
+              borderRadius: 'var(--radius-xl)',
+              padding: '24px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            {/* Mini bar chart decoration */}
+            <div style={{ position: 'absolute', right: 20, bottom: 20, display: 'flex', alignItems: 'flex-end', gap: 4, opacity: 0.18 }}>
+              {[40, 65, 45, 80, 55, 90, 70].map((h, j) => (
+                <div key={j} style={{ width: 6, height: h * 0.6, background: s.accent, borderRadius: 3 }} />
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: s.accent }}>{s.label}</p>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                background: 'rgba(0,0,0,0.08)',
+                color: s.accent,
+                padding: '2px 8px',
+                borderRadius: '99px',
+              }}>
+                All Time
+              </span>
+            </div>
+
+            <div style={{ marginBottom: '6px' }}>
+              <span style={{ fontSize: '38px', fontWeight: 800, color: 'var(--primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                {s.value}
+              </span>
+            </div>
+            <p style={{ fontSize: '12px', color: s.accent, fontWeight: 500 }}>{s.unit} · {s.sublabel}</p>
+
+            {s.href && (
+              <Link
+                href={s.href}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginTop: '20px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: s.accent,
+                  textDecoration: 'none',
+                  opacity: 0.85,
+                }}
+              >
+                {s.linkLabel}
+                <ArrowRight size={13} />
+              </Link>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Quick links */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }} className="animate-fadeup-4">
+        {[
+          { label: 'Record Production', desc: "Add today's egg collection by shed", href: '/production' },
+          { label: 'Record Sales', desc: 'Log eggs sold to buyers', href: '/sales' },
+          { label: 'View Dashboard', desc: 'Analytics and trends', href: '/dashboard' },
+        ].map(link => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="quick-link-card"
           >
-            Documentation
-          </a>
-        </div>
-      </main>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>{link.label}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>{link.desc}</p>
+              </div>
+              <ArrowRight size={16} color="var(--text-muted)" />
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
+

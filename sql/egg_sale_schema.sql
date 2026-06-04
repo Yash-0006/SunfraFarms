@@ -1,0 +1,7 @@
+USE eggcited;
+
+CREATE TABLE egg_sale(
+id INT AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(100) NOT NULL,
+quantity FLOAT,
+remarks VARCHAR(100) );
