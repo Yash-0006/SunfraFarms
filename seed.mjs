@@ -21,29 +21,43 @@ async function seed() {
     const sheds = ['Shed A', 'Shed B', 'Shed C'];
     const buyers = ['Local Bakery', 'Supermarket', 'Farmers Market'];
 
+    const getValidQty = (minTrays, maxTrays) => {
+      const trays = Math.floor(Math.random() * (maxTrays - minTrays + 1) + minTrays);
+      const loose = Math.floor(Math.random() * 30); // 0 to 29
+      return parseFloat((trays + (loose / 100)).toFixed(2));
+    };
+
     for (const date of dates) {
       // Production
       for (const shed of sheds) {
-        // Random quantity between 10 to 50 trays
-        const goodQty = (Math.random() * 40 + 10).toFixed(2);
-        const badQty = (Math.random() * 5).toFixed(2);
+        const goodQty = getValidQty(10, 50);
+        const damagedQty = getValidQty(0, 5);
+        const bigQty = getValidQty(0, 3);
+        const smallQty = getValidQty(0, 4);
         
         await pool.execute(
           'INSERT INTO egg_production (location, quantity, conditionn, date) VALUES (?, ?, ?, ?)',
-          [shed, parseFloat(goodQty), 'Good', date]
+          [shed, goodQty, 'Good', date]
         );
-        
         await pool.execute(
           'INSERT INTO egg_production (location, quantity, conditionn, date) VALUES (?, ?, ?, ?)',
-          [shed, parseFloat(badQty), 'Damage', date]
+          [shed, damagedQty, 'Damaged', date]
+        );
+        await pool.execute(
+          'INSERT INTO egg_production (location, quantity, conditionn, date) VALUES (?, ?, ?, ?)',
+          [shed, bigQty, 'Big', date]
+        );
+        await pool.execute(
+          'INSERT INTO egg_production (location, quantity, conditionn, date) VALUES (?, ?, ?, ?)',
+          [shed, smallQty, 'Small', date]
         );
       }
 
       // Sales
-      const salesQty = (Math.random() * 80 + 20).toFixed(2);
+      const salesQty = getValidQty(20, 100);
       await pool.execute(
         'INSERT INTO egg_sale (name, quantity, date) VALUES (?, ?, ?)',
-        [buyers[Math.floor(Math.random() * buyers.length)], parseFloat(salesQty), date]
+        [buyers[Math.floor(Math.random() * buyers.length)], salesQty, date]
       );
     }
     

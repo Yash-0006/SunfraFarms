@@ -4,25 +4,27 @@ import { parseToTotalEggs, normalizeQuantity } from '@/lib/quantity-utils';
 
 export async function GET(request: Request) {
   try {
-    // Get today's date string in local YYYY-MM-DD format
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-    // Fetch all production and sales to calculate accurate totals due to Tray/Egg format
     const production: any = await query('SELECT * FROM egg_production');
     const sales: any = await query('SELECT * FROM egg_sale');
 
     let allTimeGoodEggs = 0;
-    let allTimeBadEggs = 0;
+    let allTimeDamagedEggs = 0;
+    let allTimeBigEggs = 0;
+    let allTimeSmallEggs = 0;
+    
     let todayGoodEggs = 0;
-    let todayBadEggs = 0;
+    let todayDamagedEggs = 0;
+    let todayBigEggs = 0;
+    let todaySmallEggs = 0;
 
-    // Chart data grouped by date (YYYY-MM-DD)
-    const chartDataMap: Record<string, { date: string, good: number, bad: number }> = {};
+    const chartDataMap: Record<string, { date: string, good: number, damaged: number, big: number, small: number, sales: number, bigSales: number, smallSales: number }> = {};
 
     production.forEach((row: any) => {
       const d = new Date(row.date);
-      if (!row.date || isNaN(d.getTime())) return; // skip rows with invalid dates
+      if (!row.date || isNaN(d.getTime())) return; 
       
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const isToday = dateStr === todayStr;
@@ -31,35 +33,56 @@ export async function GET(request: Request) {
       if (row.conditionn === 'Good') {
         allTimeGoodEggs += eggs;
         if (isToday) todayGoodEggs += eggs;
+      } else if (row.conditionn === 'Damaged') {
+        allTimeDamagedEggs += eggs;
+        if (isToday) todayDamagedEggs += eggs;
+      } else if (row.conditionn === 'Big') {
+        allTimeBigEggs += eggs;
+        if (isToday) todayBigEggs += eggs;
+      } else if (row.conditionn === 'Small') {
+        allTimeSmallEggs += eggs;
+        if (isToday) todaySmallEggs += eggs;
       } else {
-        allTimeBadEggs += eggs;
-        if (isToday) todayBadEggs += eggs;
+        // Fallback
+        allTimeDamagedEggs += eggs;
+        if (isToday) todayDamagedEggs += eggs;
       }
 
-      if (!chartDataMap[dateStr]) chartDataMap[dateStr] = { date: dateStr, good: 0, bad: 0 };
+      if (!chartDataMap[dateStr]) chartDataMap[dateStr] = { date: dateStr, good: 0, damaged: 0, big: 0, small: 0, sales: 0, bigSales: 0, smallSales: 0 };
       
-      if (row.conditionn === 'Good') {
-        chartDataMap[dateStr].good += eggs;
-      } else {
-        chartDataMap[dateStr].bad += eggs;
-      }
+      if (row.conditionn === 'Good') chartDataMap[dateStr].good += eggs;
+      else if (row.conditionn === 'Damaged') chartDataMap[dateStr].damaged += eggs;
+      else if (row.conditionn === 'Big') chartDataMap[dateStr].big += eggs;
+      else if (row.conditionn === 'Small') chartDataMap[dateStr].small += eggs;
+      else chartDataMap[dateStr].damaged += eggs;
     });
 
-    let allTimeSalesQty = 0;
-    let todaySalesQty = 0;
+    let allTimeSalesBigQty = 0;
+    let allTimeSalesSmallQty = 0;
+    let todaySalesBigQty = 0;
+    let todaySalesSmallQty = 0;
 
     sales.forEach((row: any) => {
       const d = new Date(row.date);
-      if (!row.date || isNaN(d.getTime())) return; // skip rows with invalid dates
+      if (!row.date || isNaN(d.getTime())) return;
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const isToday = dateStr === todayStr;
-      const eggs = parseToTotalEggs(row.quantity);
+      
+      const bigEggs = parseToTotalEggs(row.big_quantity);
+      const smallEggs = parseToTotalEggs(row.small_quantity);
 
-      allTimeSalesQty += eggs;
+      allTimeSalesBigQty += bigEggs;
+      allTimeSalesSmallQty += smallEggs;
       
       if (isToday) {
-        todaySalesQty += eggs;
+        todaySalesBigQty += bigEggs;
+        todaySalesSmallQty += smallEggs;
       }
+
+      if (!chartDataMap[dateStr]) chartDataMap[dateStr] = { date: dateStr, good: 0, damaged: 0, big: 0, small: 0, sales: 0, bigSales: 0, smallSales: 0 };
+
+      chartDataMap[dateStr].bigSales += bigEggs;
+      chartDataMap[dateStr].smallSales += smallEggs;
     });
 
     const { searchParams } = new URL(request.url);
@@ -80,40 +103,39 @@ export async function GET(request: Request) {
       .map(d => ({
         date: d.date,
         good: normalizeQuantity(d.good),
-        bad: normalizeQuantity(d.bad)
+        damaged: normalizeQuantity(d.damaged),
+        big: normalizeQuantity(d.big),
+        small: normalizeQuantity(d.small),
+        bigSales: normalizeQuantity(d.bigSales || 0),
+        smallSales: normalizeQuantity(d.smallSales || 0)
       }));
 
-    // Format final response
     const metrics = {
-      goodEggs: {
-        allTime: normalizeQuantity(allTimeGoodEggs),
-        today: normalizeQuantity(todayGoodEggs),
-      },
-      badEggs: {
-        allTime: normalizeQuantity(allTimeBadEggs),
-        today: normalizeQuantity(todayBadEggs),
-      },
-      salesQty: {
-        allTime: normalizeQuantity(allTimeSalesQty),
-        today: normalizeQuantity(todaySalesQty),
-      }
+      goodEggs: { allTime: normalizeQuantity(allTimeGoodEggs), today: normalizeQuantity(todayGoodEggs) },
+      damagedEggs: { allTime: normalizeQuantity(allTimeDamagedEggs), today: normalizeQuantity(todayDamagedEggs) },
+      bigEggs: { allTime: normalizeQuantity(allTimeBigEggs), today: normalizeQuantity(todayBigEggs) },
+      smallEggs: { allTime: normalizeQuantity(allTimeSmallEggs), today: normalizeQuantity(todaySmallEggs) },
+      salesBigQty: { allTime: normalizeQuantity(allTimeSalesBigQty), today: normalizeQuantity(todaySalesBigQty) },
+      salesSmallQty: { allTime: normalizeQuantity(allTimeSalesSmallQty), today: normalizeQuantity(todaySalesSmallQty) },
+      salesQty: { allTime: normalizeQuantity(allTimeSalesBigQty + allTimeSalesSmallQty), today: normalizeQuantity(todaySalesBigQty + todaySalesSmallQty) }
     };
 
-    // Recent activity
     const toTime = (v: any) => { const t = new Date(v).getTime(); return isNaN(t) ? 0 : t; };
 
-    // Group production by location — each location shown once with good + bad combined
-    const locationMap: Record<string, { location: string; good: number; bad: number; date: string }> = {};
+    const locationMap: Record<string, { location: string; good: number; damaged: number; big: number; small: number; date: string }> = {};
     production
       .sort((a: any, b: any) => toTime(b.date) - toTime(a.date))
       .forEach((row: any) => {
         const loc = row.location;
         if (!locationMap[loc]) {
-          locationMap[loc] = { location: loc, good: 0, bad: 0, date: row.date };
+          locationMap[loc] = { location: loc, good: 0, damaged: 0, big: 0, small: 0, date: row.date };
         }
         const eggs = parseToTotalEggs(row.quantity);
         if (row.conditionn === 'Good') locationMap[loc].good += eggs;
-        else locationMap[loc].bad += eggs;
+        else if (row.conditionn === 'Damaged') locationMap[loc].damaged += eggs;
+        else if (row.conditionn === 'Big') locationMap[loc].big += eggs;
+        else if (row.conditionn === 'Small') locationMap[loc].small += eggs;
+        else locationMap[loc].damaged += eggs;
       });
 
     const recentProduction = Object.values(locationMap)
@@ -122,20 +144,16 @@ export async function GET(request: Request) {
         location: r.location,
         date: r.date,
         goodQuantity: normalizeQuantity(r.good),
-        badQuantity: normalizeQuantity(r.bad),
+        damagedQuantity: normalizeQuantity(r.damaged),
+        bigQuantity: normalizeQuantity(r.big),
+        smallQuantity: normalizeQuantity(r.small),
       }));
 
     const recentSales = sales
       .sort((a: any, b: any) => toTime(b.date) - toTime(a.date))
       .slice(0, 5);
 
-    return NextResponse.json({
-      metrics,
-      chartData,
-      recentProduction,
-      recentSales
-    });
-
+    return NextResponse.json({ metrics, chartData, recentProduction, recentSales });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
     return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 });

@@ -1,13 +1,21 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Warehouse, LogOut, LayoutDashboard, Settings } from 'lucide-react';
+import { Warehouse, LogOut, LayoutDashboard, Settings, ChevronDown, ChevronRight } from 'lucide-react';
 
 const NAV = [
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/admin/godown', icon: Warehouse, label: 'Egg Godown' },
+  { 
+    href: '/admin/godown', 
+    icon: Warehouse, 
+    label: 'Egg Godown',
+    subItems: [
+      { href: '/admin/godown/production', label: 'Production' },
+      { href: '/admin/godown/sales', label: 'Sales' }
+    ]
+  },
   { href: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -52,8 +60,15 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(true);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const isActive = (href: string) => pathname === href;
+  useEffect(() => {
+    if (pathname.startsWith('/admin/godown')) {
+      setExpanded(prev => ({ ...prev, '/admin/godown': true }));
+    }
+  }, [pathname]);
+
+  const isActive = (href: string, exact = false) => exact ? pathname === href : pathname.startsWith(href);
 
   const handleLogout = async () => {
     try {
@@ -62,6 +77,17 @@ export default function Sidebar() {
       router.refresh();
     } catch (e) {
       console.error('Logout failed', e);
+    }
+  };
+
+  const handleToggle = (href: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!open) {
+      setOpen(true);
+      setExpanded(prev => ({ ...prev, [href]: true }));
+    } else {
+      setExpanded(prev => ({ ...prev, [href]: !prev[href] }));
     }
   };
 
@@ -94,7 +120,6 @@ export default function Sidebar() {
         padding: open ? '0 14px 0 16px' : '0',
         transition: 'padding 0.25s',
       }}>
-        {/* "Menu" label — left side, only when open */}
         {open && (
           <span style={{
             fontSize: '12px',
@@ -107,7 +132,6 @@ export default function Sidebar() {
           </span>
         )}
 
-        {/* Hamburger toggle — always right (or centered when collapsed) */}
         <button
           onClick={() => setOpen(o => !o)}
           title={open ? 'Close menu' : 'Open menu'}
@@ -134,68 +158,151 @@ export default function Sidebar() {
         gap: '4px',
         width: '100%',
       }}>
-        {NAV.map(({ href, icon: Icon, label }) => {
-          const active = isActive(href);
+        {NAV.map(({ href, icon: Icon, label, subItems }) => {
+          const activeExact = pathname === href;
+          const activePrefix = isActive(href);
+          const isHighlighted = subItems ? activePrefix : activeExact;
+
           return (
-            <Link
-              key={href}
-              href={href}
-              title={!open ? label : undefined}
-              style={{
+            <div key={href} style={{ width: '100%' }}>
+              <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: open ? '10px' : '0px',
                 margin: '0 10px',
-                padding: open ? '0 10px' : '0',
-                height: '40px',
-                borderRadius: '12px',
-                background: 'transparent',
-                color: active ? 'var(--primary)' : 'var(--text-muted)',
-                transition: 'background 0.15s, color 0.15s',
-                textDecoration: 'none',
-                whiteSpace: 'nowrap',
-                justifyContent: open ? 'flex-start' : 'center',
-                ...(open && active ? { background: 'var(--primary)', color: '#fff' } : {}),
-              }}
-              onMouseEnter={e => {
-                if (!active) {
-                  (e.currentTarget as HTMLElement).style.background = 'var(--grey-bg)';
-                  (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
-                }
-              }}
-              onMouseLeave={e => {
-                if (!active) {
-                  (e.currentTarget as HTMLElement).style.background = 'transparent';
-                  (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
-                }
-              }}
-            >
-              {/* Icon — always in a fixed 40×40 square so it stays symmetrical */}
-              <span style={{
-                width: 40,
-                height: 40,
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                background: !open && active ? 'var(--primary)' : 'transparent',
-                color: !open && active ? '#fff' : 'inherit',
-                transition: 'background 0.15s',
+                position: 'relative'
               }}>
-                <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
-              </span>
-              <span style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                opacity: open ? 1 : 0,
-                maxWidth: open ? '120px' : '0px',
-                overflow: 'hidden',
-                transition: 'opacity 0.2s, max-width 0.25s cubic-bezier(0.4,0,0.2,1)',
-              }}>
-                {label}
-              </span>
-            </Link>
+                <Link
+                  href={href}
+                  title={!open ? label : undefined}
+                  style={{
+                    display: 'flex',
+                    flex: 1,
+                    alignItems: 'center',
+                    gap: open ? '10px' : '0px',
+                    padding: open ? '0 10px' : '0',
+                    paddingRight: subItems && open ? '36px' : (open ? '10px' : '0'), // space for toggle
+                    height: '40px',
+                    borderRadius: '12px',
+                    background: open && isHighlighted ? 'var(--primary)' : 'transparent',
+                    color: open && isHighlighted ? '#fff' : (isHighlighted ? 'var(--primary)' : 'var(--text-muted)'),
+                    transition: 'background 0.15s, color 0.15s',
+                    textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                    justifyContent: open ? 'flex-start' : 'center',
+                  }}
+                  onMouseEnter={e => {
+                    if (!isHighlighted) {
+                      (e.currentTarget as HTMLElement).style.background = 'var(--grey-bg)';
+                      (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isHighlighted) {
+                      (e.currentTarget as HTMLElement).style.background = 'transparent';
+                      (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+                    }
+                  }}
+                >
+                  <span style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    background: !open && isHighlighted ? 'var(--primary)' : 'transparent',
+                    color: !open && isHighlighted ? '#fff' : 'inherit',
+                    transition: 'background 0.15s',
+                  }}>
+                    <Icon size={20} strokeWidth={isHighlighted ? 2.2 : 1.8} />
+                  </span>
+                  
+                  <span style={{
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    flex: 1,
+                    opacity: open ? 1 : 0,
+                    maxWidth: open ? '120px' : '0px',
+                    overflow: 'hidden',
+                    transition: 'opacity 0.2s, max-width 0.25s cubic-bezier(0.4,0,0.2,1)',
+                  }}>
+                    {label}
+                  </span>
+                </Link>
+
+                {subItems && open && (
+                  <button
+                    onClick={(e) => handleToggle(href, e)}
+                    style={{
+                      position: 'absolute',
+                      right: 4,
+                      background: 'transparent',
+                      border: 'none',
+                      color: isHighlighted ? '#fff' : 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      padding: 6,
+                      borderRadius: 8,
+                      zIndex: 2,
+                    }}
+                    onMouseEnter={e => {
+                       (e.currentTarget as HTMLElement).style.background = isHighlighted ? 'rgba(255,255,255,0.2)' : 'var(--border)';
+                    }}
+                    onMouseLeave={e => {
+                       (e.currentTarget as HTMLElement).style.background = 'transparent';
+                    }}
+                  >
+                    {expanded[href] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </button>
+                )}
+              </div>
+
+              {/* Sub items */}
+              {subItems && expanded[href] && open && (
+                <div style={{ display: 'flex', flexDirection: 'column', marginTop: 4, gap: 2 }}>
+                  {subItems.map(sub => {
+                    const subActive = pathname === sub.href;
+                    return (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          height: '32px',
+                          margin: '0 10px 0 46px', // indent to align with text
+                          padding: '0 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          color: subActive ? 'var(--primary)' : 'var(--text-muted)',
+                          background: subActive ? 'var(--grey-bg)' : 'transparent',
+                          textDecoration: 'none',
+                          transition: 'background 0.15s, color 0.15s',
+                        }}
+                        onMouseEnter={e => {
+                          if (!subActive) {
+                            (e.currentTarget as HTMLElement).style.background = 'var(--grey-bg)';
+                            (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (!subActive) {
+                            (e.currentTarget as HTMLElement).style.background = 'transparent';
+                            (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)';
+                          }
+                        }}
+                      >
+                        {sub.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>

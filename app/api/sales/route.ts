@@ -40,14 +40,17 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, quantity, remarks } = body;
+    const { name, bigQuantity, smallQuantity, remarks } = body;
 
-    const totalEggs = parseToTotalEggs(quantity);
-    const normalizedQty = normalizeQuantity(totalEggs);
+    const totalBigEggs = parseToTotalEggs(bigQuantity);
+    const normalizedBigQty = normalizeQuantity(totalBigEggs);
+
+    const totalSmallEggs = parseToTotalEggs(smallQuantity);
+    const normalizedSmallQty = normalizeQuantity(totalSmallEggs);
 
     const result = await query(
-      'INSERT INTO egg_sale (name, quantity, remarks) VALUES (?, ?, ?)',
-      [name, normalizedQty, remarks]
+      'INSERT INTO egg_sale (name, big_quantity, small_quantity, remarks, date) VALUES (?, ?, ?, ?, NOW())',
+      [name, normalizedBigQty, normalizedSmallQty, remarks]
     );
 
     return NextResponse.json({ success: true, insertedId: (result as any).insertId });
@@ -60,14 +63,17 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, quantity, remarks } = body;
+    const { id, name, bigQuantity, smallQuantity, remarks } = body;
 
-    const totalEggs = parseToTotalEggs(quantity);
-    const normalizedQty = normalizeQuantity(totalEggs);
+    const totalBigEggs = parseToTotalEggs(bigQuantity);
+    const normalizedBigQty = normalizeQuantity(totalBigEggs);
+
+    const totalSmallEggs = parseToTotalEggs(smallQuantity);
+    const normalizedSmallQty = normalizeQuantity(totalSmallEggs);
 
     await query(
-      'UPDATE egg_sale SET name = ?, quantity = ?, remarks = ? WHERE id = ?',
-      [name, normalizedQty, remarks, id]
+      'UPDATE egg_sale SET name = ?, big_quantity = ?, small_quantity = ?, remarks = ? WHERE id = ?',
+      [name, normalizedBigQty, normalizedSmallQty, remarks, id]
     );
 
     return NextResponse.json({ success: true });

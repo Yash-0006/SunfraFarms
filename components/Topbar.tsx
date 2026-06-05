@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LogOut, Settings } from 'lucide-react';
@@ -18,6 +18,17 @@ export default function Topbar() {
   const router   = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [userName, setUserName] = useState('Admin');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   const subtitle = PAGE_TITLES[pathname] ?? 'Overview';
 
   const fetchUser = async () => {
@@ -95,6 +106,7 @@ export default function Topbar() {
 
         {/* Avatar with hover dropdown */}
         <div
+          ref={dropdownRef}
           className={`topbar-user-wrap ${dropdownOpen ? 'clicked-open' : ''}`}
         >
           {/* Trigger area */}

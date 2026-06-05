@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Search, Calendar } from 'lucide-react';
-import { formatQuantityDisplay } from '@/lib/quantity-utils';
+import CustomDatePicker from '@/components/CustomDatePicker';
+import { formatQuantityDisplay, formatTraysLooseDisplay } from '@/lib/quantity-utils';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { useAiPageContext } from '@/components/AiPageContext';
+import { useRouter } from 'next/navigation';
 
 export default function SalesPage() {
   const [data, setData] = useState<any[]>([]);
@@ -13,10 +16,17 @@ export default function SalesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [periodFilter, setPeriodFilter] = useState('today');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  const aiContext = useAiPageContext();
+  const router = useRouter();
 
   const [name, setName] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [quantityInput, setQuantityInput] = useState('');
+  const [bigTrays, setBigTrays] = useState('');
+  const [bigLoose, setBigLoose] = useState('');
+  const [smallTrays, setSmallTrays] = useState('');
+  const [smallLoose, setSmallLoose] = useState('');
 
   const fetchData = async (dateStr?: string, periodStr?: string) => {
     setIsLoading(true);
@@ -39,24 +49,97 @@ export default function SalesPage() {
 
   useEffect(() => { fetchData(dateFilter, periodFilter); }, [dateFilter, periodFilter]);
 
+  // Check for pending form fill on mount
+  useEffect(() => {
+    const pending = sessionStorage.getItem('pending_form_fill');
+    if (pending) {
+      try {
+        const action = JSON.parse(pending);
+        if (action.formType === 'sale') {
+          sessionStorage.removeItem('pending_form_fill');
+          setTimeout(() => {
+            const f = action.fields;
+            if (f.name) setName(f.name);
+            if (f.bigTrays) setBigTrays(f.bigTrays);
+            if (f.bigLoose) setBigLoose(f.bigLoose);
+            if (f.smallTrays) setSmallTrays(f.smallTrays);
+            if (f.smallLoose) setSmallLoose(f.smallLoose);
+            if (f.remarks) setRemarks(f.remarks);
+            setEditingId(null);
+            setIsModalOpen(true);
+          }, 100);
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  // Register AI context integrations
+  useEffect(() => {
+    aiContext.registerDataRefresher(() => fetchData(dateFilter, periodFilter));
+    aiContext.registerNavigator((url: string) => router.push(url));
+    aiContext.registerFormFiller((action) => {
+      if (action.formType === 'sale') {
+        const f = action.fields;
+        if (f.name) setName(f.name);
+        if (f.bigTrays) setBigTrays(f.bigTrays);
+        if (f.bigLoose) setBigLoose(f.bigLoose);
+        if (f.smallTrays) setSmallTrays(f.smallTrays);
+        if (f.smallLoose) setSmallLoose(f.smallLoose);
+        if (f.remarks) setRemarks(f.remarks);
+        setEditingId(null);
+        setIsModalOpen(true);
+      }
+    });
+  }, [dateFilter, periodFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, dateFilter, periodFilter]);
+
+  const setTraysLoose = (qty: number, setT: any, setL: any) => {
+    if (!qty) { setT(''); setL(''); return; }
+    const total = Math.round(qty * 100);
+    const trays = Math.floor(qty);
+    const loose = total - (trays * 100);
+    setT(trays > 0 ? trays.toString() : '');
+    setL(loose > 0 ? loose.toString() : '');
+  };
+
   const handleOpenModal = (item?: any) => {
     if (item) {
       setEditingId(item.id);
       setName(item.name);
       setRemarks(item.remarks ?? '');
-      setQuantityInput(item.quantity.toString());
+      setTraysLoose(item.big_quantity, setBigTrays, setBigLoose);
+      setTraysLoose(item.small_quantity, setSmallTrays, setSmallLoose);
     } else {
       setEditingId(null);
       setName('');
       setRemarks('');
-      setQuantityInput('');
+      setBigTrays(''); setBigLoose('');
+      setSmallTrays(''); setSmallLoose('');
     }
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { id: editingId, name, remarks, quantity: quantityInput };
+    const getQty = (t: string, l: string) => {
+      const trays = parseInt(t) || 0;
+      const loose = parseInt(l) || 0;
+      if (trays === 0 && loose === 0) return '';
+      return (trays + (loose / 100)).toFixed(2);
+    };
+
+    const bigQtyStr = getQty(bigTrays, bigLoose);
+    const smallQtyStr = getQty(smallTrays, smallLoose);
+    
+    if (!bigQtyStr && !smallQtyStr) {
+      alert('Please enter at least one quantity');
+      return;
+    }
+
+    const payload = { id: editingId, name, remarks, bigQuantity: bigQtyStr, smallQuantity: smallQtyStr };
     try {
       const res = await fetch('/api/sales', {
         method: editingId ? 'PUT' : 'POST',
@@ -84,6 +167,9 @@ export default function SalesPage() {
     row.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const paginatedData = filteredData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
       {/* Page header */}
@@ -99,7 +185,7 @@ export default function SalesPage() {
       </div>
 
       {/* Table card */}
-      <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }} className="animate-fadeup-2">
+      <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }} className="animate-fadeup">
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -128,19 +214,13 @@ export default function SalesPage() {
               ]}
               style={{ width: '130px' }}
             />
-            <div style={{ position: 'relative', width: 140 }}>
-              <Calendar size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-              <input 
-                type="date" 
-                className="input date-picker-custom" 
-                style={{ paddingLeft: 36, width: '100%', cursor: 'pointer', height: '36px' }} 
-                value={dateFilter} 
-                onChange={e => {
-                  setDateFilter(e.target.value);
-                  setPeriodFilter('');
-                }} 
-              />
-            </div>
+            <CustomDatePicker 
+              value={dateFilter} 
+              onChange={(val) => {
+                setDateFilter(val);
+                setPeriodFilter('');
+              }} 
+            />
           </div>
         </div>
 
@@ -149,7 +229,8 @@ export default function SalesPage() {
             <thead>
               <tr>
                 <th>Buyer Name</th>
-                <th style={{ textAlign: 'right' }}>Quantity (Trays.Eggs)</th>
+                <th style={{ textAlign: 'center' }}>Big Quantity</th>
+                <th style={{ textAlign: 'center' }}>Small Quantity</th>
                 <th>Remarks</th>
                 <th>Date</th>
                 <th style={{ textAlign: 'center' }}>Actions</th>
@@ -157,31 +238,52 @@ export default function SalesPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading…</td></tr>
-              ) : filteredData.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '60px 20px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                      <div className="spinner" />
+                      <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading sales records...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedData.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                   {searchQuery ? 'No buyers match your search.' : 'No sales records found.'}
                 </td></tr>
-              ) : filteredData.map((row) => (
+              ) : paginatedData.map((row) => (
                 <tr key={row.id}>
                   <td style={{ fontWeight: 600 }}>{row.name}</td>
-                  <td style={{ textAlign: 'right' }}>
+                  <td style={{ textAlign: 'center' }}>
                     <span style={{
                       display: 'inline-block',
                       padding: '3px 12px',
                       borderRadius: 99,
                       fontSize: '12px',
                       fontWeight: 700,
-                      background: 'var(--champagne)',
-                      color: '#8B4A1A',
+                      background: '#E0F2FE',
+                      color: '#0369A1',
                       fontVariantNumeric: 'tabular-nums',
                     }}>
-                      {formatQuantityDisplay(row.quantity)}
+                      {formatTraysLooseDisplay(row.big_quantity)}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '3px 12px',
+                      borderRadius: 99,
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      background: '#FEF3C7',
+                      color: '#B45309',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>
+                      {formatTraysLooseDisplay(row.small_quantity)}
                     </span>
                   </td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{row.remarks || '—'}</td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                    {row.date ? new Date(row.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                    {row.date ? (() => { const d = new Date(row.date); return isNaN(d.getTime()) ? '—' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })() : '—'}
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <button
@@ -208,6 +310,36 @@ export default function SalesPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>
+              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)} of {filteredData.length} entries
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                className="btn-ghost" 
+                style={{ padding: '6px 12px', fontSize: '13px' }} 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              >
+                Previous
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px', fontSize: '13px', fontWeight: 600, background: 'var(--grey-bg)', borderRadius: '6px' }}>
+                {currentPage}
+              </div>
+              <button 
+                className="btn-ghost" 
+                style={{ padding: '6px 12px', fontSize: '13px' }}
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal */}
@@ -229,9 +361,19 @@ export default function SalesPage() {
                 <input className="input" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. John Doe" required />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Quantity (Trays.Eggs)</label>
-                <input className="input" type="number" step="0.01" value={quantityInput} onChange={e => setQuantityInput(e.target.value)} placeholder="e.g. 5.15" required />
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 4 }}>1 tray = 30 eggs. e.g. 5.15 = 5 trays + 15 eggs</p>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Big Eggs Quantity</label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <input className="input" style={{ flex: 1 }} type="number" min="0" value={bigTrays} onChange={e => setBigTrays(e.target.value)} placeholder="Big Trays" />
+                  <input className="input" style={{ flex: 1 }} type="number" min="0" max="29" value={bigLoose} onChange={e => setBigLoose(e.target.value)} placeholder="Big Loose" />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Small Eggs Quantity</label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <input className="input" style={{ flex: 1 }} type="number" min="0" value={smallTrays} onChange={e => setSmallTrays(e.target.value)} placeholder="Small Trays" />
+                  <input className="input" style={{ flex: 1 }} type="number" min="0" max="29" value={smallLoose} onChange={e => setSmallLoose(e.target.value)} placeholder="Small Loose" />
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 4 }}>1 tray = 30 eggs.</p>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Remarks</label>

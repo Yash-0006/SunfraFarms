@@ -79,9 +79,9 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div style={{ width: 36, height: 36, border: '3px solid var(--green-light)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="page-loader">
+        <div className="spinner" />
+        <p style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}>Loading settings...</p>
       </div>
     );
   }
@@ -108,7 +108,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '32px' }} className="animate-fadeup-2">
+      <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '32px' }} className="animate-fadeup">
         {message.text && (
           <div style={{ 
             padding: '12px 16px', 

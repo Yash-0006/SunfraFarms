@@ -26,8 +26,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow other public routes
-  if (publicRoutes.some(route => pathname.startsWith(route))) {
+  // Allow exact home page and other public routes
+  if (pathname === '/' || publicRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.next();
   }
 

@@ -32,19 +32,26 @@ export async function GET(request: Request) {
     rows = await query(queryStr, params);
     
     // Group by location
-    const groupedData: Record<string, { goodEggs: number, badEggs: number }> = {};
+    const groupedData: Record<string, { goodEggs: number, damagedEggs: number, bigEggs: number, smallEggs: number }> = {};
     
     rows.forEach((row: any) => {
       const loc = row.location;
       if (!groupedData[loc]) {
-        groupedData[loc] = { goodEggs: 0, badEggs: 0 };
+        groupedData[loc] = { goodEggs: 0, damagedEggs: 0, bigEggs: 0, smallEggs: 0 };
       }
       
       const eggs = parseToTotalEggs(row.quantity);
       if (row.conditionn === 'Good') {
         groupedData[loc].goodEggs += eggs;
+      } else if (row.conditionn === 'Damaged') {
+        groupedData[loc].damagedEggs += eggs;
+      } else if (row.conditionn === 'Big') {
+        groupedData[loc].bigEggs += eggs;
+      } else if (row.conditionn === 'Small') {
+        groupedData[loc].smallEggs += eggs;
       } else {
-        groupedData[loc].badEggs += eggs;
+        // Fallback for legacy 'Damage' or 'Bad'
+        groupedData[loc].damagedEggs += eggs;
       }
     });
 
@@ -52,7 +59,9 @@ export async function GET(request: Request) {
     const result = Object.keys(groupedData).map((loc) => ({
       location: loc,
       goodQuantity: normalizeQuantity(groupedData[loc].goodEggs),
-      badQuantity: normalizeQuantity(groupedData[loc].badEggs),
+      damagedQuantity: normalizeQuantity(groupedData[loc].damagedEggs),
+      bigQuantity: normalizeQuantity(groupedData[loc].bigEggs),
+      smallQuantity: normalizeQuantity(groupedData[loc].smallEggs),
     }));
 
     return NextResponse.json(result);
@@ -65,23 +74,27 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { location, goodQuantity, badQuantity } = body;
+    const { location, goodQuantity, damagedQuantity, bigQuantity, smallQuantity } = body;
 
     const goodEggs = parseToTotalEggs(goodQuantity || '0');
-    const badEggs = parseToTotalEggs(badQuantity || '0');
+    const damagedEggs = parseToTotalEggs(damagedQuantity || '0');
+    const bigEggs = parseToTotalEggs(bigQuantity || '0');
+    const smallEggs = parseToTotalEggs(smallQuantity || '0');
 
-    if (goodEggs > 0) {
-      await query(
-        'INSERT INTO egg_production (location, conditionn, quantity) VALUES (?, ?, ?)',
-        [location, 'Good', normalizeQuantity(goodEggs)]
-      );
-    }
-    
-    if (badEggs > 0) {
-      await query(
-        'INSERT INTO egg_production (location, conditionn, quantity) VALUES (?, ?, ?)',
-        [location, 'Bad', normalizeQuantity(badEggs)]
-      );
+    const inserts = [
+      { condition: 'Good', qty: goodEggs },
+      { condition: 'Damaged', qty: damagedEggs },
+      { condition: 'Big', qty: bigEggs },
+      { condition: 'Small', qty: smallEggs }
+    ];
+
+    for (const insert of inserts) {
+      if (insert.qty > 0) {
+        await query(
+          'INSERT INTO egg_production (location, conditionn, quantity, date) VALUES (?, ?, ?, NOW())',
+          [location, insert.condition, normalizeQuantity(insert.qty)]
+        );
+      }
     }
 
     return NextResponse.json({ success: true });
@@ -94,26 +107,30 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { oldLocation, location, goodQuantity, badQuantity } = body;
+    const { oldLocation, location, goodQuantity, damagedQuantity, bigQuantity, smallQuantity } = body;
 
     // To update properly without complex SQL conditions, we delete old records and insert new ones
     await query('DELETE FROM egg_production WHERE location = ?', [oldLocation]);
 
     const goodEggs = parseToTotalEggs(goodQuantity || '0');
-    const badEggs = parseToTotalEggs(badQuantity || '0');
+    const damagedEggs = parseToTotalEggs(damagedQuantity || '0');
+    const bigEggs = parseToTotalEggs(bigQuantity || '0');
+    const smallEggs = parseToTotalEggs(smallQuantity || '0');
 
-    if (goodEggs > 0) {
-      await query(
-        'INSERT INTO egg_production (location, conditionn, quantity) VALUES (?, ?, ?)',
-        [location, 'Good', normalizeQuantity(goodEggs)]
-      );
-    }
-    
-    if (badEggs > 0) {
-      await query(
-        'INSERT INTO egg_production (location, conditionn, quantity) VALUES (?, ?, ?)',
-        [location, 'Bad', normalizeQuantity(badEggs)]
-      );
+    const inserts = [
+      { condition: 'Good', qty: goodEggs },
+      { condition: 'Damaged', qty: damagedEggs },
+      { condition: 'Big', qty: bigEggs },
+      { condition: 'Small', qty: smallEggs }
+    ];
+
+    for (const insert of inserts) {
+      if (insert.qty > 0) {
+        await query(
+          'INSERT INTO egg_production (location, conditionn, quantity, date) VALUES (?, ?, ?, NOW())',
+          [location, insert.condition, normalizeQuantity(insert.qty)]
+        );
+      }
     }
 
     return NextResponse.json({ success: true });
