@@ -2,9 +2,34 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { parseToTotalEggs, normalizeQuantity } from '@/lib/quantity-utils';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const rows: any = await query('SELECT * FROM egg_production ORDER BY id DESC');
+    const { searchParams } = new URL(request.url);
+    const dateParam = searchParams.get('date');
+    const periodParam = searchParams.get('period');
+    
+    let rows: any;
+    let queryStr = 'SELECT * FROM egg_production';
+    let params: any[] = [];
+
+    if (dateParam) {
+      queryStr += ' WHERE DATE(date) = ?';
+      params.push(dateParam);
+    } else if (periodParam && periodParam !== 'all') {
+      const today = new Date();
+      let days = 0;
+      if (periodParam === 'week') days = 7;
+      else if (periodParam === 'month') days = 30;
+      else if (periodParam === 'year') days = 365;
+      
+      const cutoff = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
+      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+      queryStr += ' WHERE DATE(date) >= ?';
+      params.push(cutoffStr);
+    }
+
+    queryStr += ' ORDER BY id DESC';
+    rows = await query(queryStr, params);
     
     // Group by location
     const groupedData: Record<string, { goodEggs: number, badEggs: number }> = {};

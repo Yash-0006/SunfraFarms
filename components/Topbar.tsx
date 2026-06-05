@@ -1,23 +1,45 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { LogOut } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 
 const PAGE_TITLES: Record<string, string> = {
-  '/': 'Egg Godown',
-  '/dashboard': 'Dashboard',
-  '/production': 'Production',
-  '/sales': 'Sales',
+  '/admin/godown': 'Egg Godown',
+  '/admin/dashboard': 'Dashboard',
+  '/admin/godown/production': 'Production',
+  '/admin/godown/sales': 'Sales',
 };
 
 export default function Topbar() {
   const pathname = usePathname();
   const router   = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [userName, setUserName] = useState('Admin');
   const subtitle = PAGE_TITLES[pathname] ?? 'Overview';
+
+  const fetchUser = async () => {
+    try {
+      const res = await fetch('/api/profile');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          const fullName = `${data.user.first_name || ''} ${data.user.last_name || ''}`.trim();
+          if (fullName) setUserName(fullName);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchUser();
+    window.addEventListener('profileUpdated', fetchUser);
+    return () => window.removeEventListener('profileUpdated', fetchUser);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -44,13 +66,13 @@ export default function Topbar() {
       zIndex: 30,
     }}>
       {/* Left: Brand logo + name */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+      <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}>
         <Image
           src="/logo.png"
           alt="Sufra Farms"
           width={60}
           height={60}
-          style={{ objectFit: 'contain' }}
+          style={{ objectFit: 'contain', height: 'auto' }}
         />
         <div>
           <p style={{
@@ -66,7 +88,7 @@ export default function Topbar() {
             {subtitle}
           </p>
         </div>
-      </div>
+      </Link>
 
       {/* Right: User avatar with dropdown + Logout */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -107,7 +129,7 @@ export default function Topbar() {
               />
             </div>
             <div style={{ lineHeight: 1.3 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>Admin</p>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{userName}</p>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Farm Manager</p>
             </div>
             {/* Chevron */}
@@ -134,7 +156,7 @@ export default function Topbar() {
             transition: 'opacity 0.18s, transform 0.18s',
           }}>
             <Link
-              href="/dashboard"
+              href="/admin/dashboard"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -156,7 +178,7 @@ export default function Topbar() {
               Dashboard
             </Link>
             <Link
-              href="/settings"
+              href="/admin/settings"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -172,9 +194,7 @@ export default function Topbar() {
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--grey-bg)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
-              </svg>
+              <Settings size={15} strokeWidth={2} />
               Settings
             </Link>
           </div>

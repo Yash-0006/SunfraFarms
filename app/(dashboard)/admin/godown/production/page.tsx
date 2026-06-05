@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Calendar } from 'lucide-react';
 import { formatQuantityDisplay } from '@/lib/quantity-utils';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function ProductionPage() {
   const [data, setData] = useState<any[]>([]);
@@ -10,15 +11,25 @@ export default function ProductionPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [periodFilter, setPeriodFilter] = useState('today');
 
   const [location, setLocation] = useState('');
   const [goodQuantityInput, setGoodQuantityInput] = useState('');
   const [badQuantityInput, setBadQuantityInput] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = async (dateStr?: string, periodStr?: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/production');
+      let url = '/api/production';
+      const params = new URLSearchParams();
+      if (dateStr) params.set('date', dateStr);
+      else if (periodStr) params.set('period', periodStr);
+      
+      const q = params.toString();
+      if (q) url += `?${q}`;
+
+      const res = await fetch(url);
       if (res.ok) setData(await res.json());
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -26,7 +37,7 @@ export default function ProductionPage() {
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(dateFilter, periodFilter); }, [dateFilter, periodFilter]);
 
   const handleOpenModal = (item?: any) => {
     if (item) {
@@ -52,7 +63,7 @@ export default function ProductionPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (res.ok) { setIsModalOpen(false); fetchData(); }
+      if (res.ok) { setIsModalOpen(false); fetchData(dateFilter, periodFilter); }
       else alert('Failed to save data');
     } catch (error) { console.error(error); }
   };
@@ -65,7 +76,7 @@ export default function ProductionPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ location: locationName }),
       });
-      if (res.ok) fetchData(); else alert('Failed to delete');
+      if (res.ok) fetchData(dateFilter, periodFilter); else alert('Failed to delete');
     } catch (error) { console.error(error); }
   };
 
@@ -90,17 +101,47 @@ export default function ProductionPage() {
       {/* Table card */}
       <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }} className="animate-fadeup-2">
         {/* Search bar */}
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ position: 'relative', width: 260 }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
+            <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               className="input"
-              style={{ paddingLeft: 32 }}
+              style={{ paddingLeft: 36 }}
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search location…"
             />
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <CustomSelect
+              value={periodFilter}
+              onChange={(val) => {
+                setPeriodFilter(val);
+                setDateFilter('');
+              }}
+              options={[
+                { value: 'today', label: 'Today' },
+                { value: 'week', label: 'This Week' },
+                { value: 'month', label: 'This Month' },
+                { value: 'year', label: 'This Year' },
+                { value: 'all', label: 'All Time' },
+              ]}
+              style={{ width: '130px' }}
+            />
+            <div style={{ position: 'relative', width: 140 }}>
+              <Calendar size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <input 
+                type="date" 
+                className="input date-picker-custom" 
+                style={{ paddingLeft: 36, width: '100%', cursor: 'pointer', height: '36px' }} 
+                value={dateFilter} 
+                onChange={e => {
+                  setDateFilter(e.target.value);
+                  setPeriodFilter('');
+                }} 
+              />
+            </div>
           </div>
         </div>
 
@@ -222,9 +263,9 @@ export default function ProductionPage() {
               <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                 Format: Trays.Eggs — e.g. 1.30 = 1 Tray + 30 Eggs (1 tray = 30 eggs). Leave blank if 0.
               </p>
-              <div style={{ display: 'flex', gap: 10, paddingTop: 16, borderTop: '1px solid var(--border)', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn-ghost" onClick={() => setIsModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Save Records</button>
+              <div style={{ display: 'flex', gap: 10, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <button type="button" className="btn-ghost" style={{ flex: 1 }} onClick={() => setIsModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Save Records</button>
               </div>
             </form>
           </div>

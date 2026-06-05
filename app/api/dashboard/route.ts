@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { parseToTotalEggs, normalizeQuantity } from '@/lib/quantity-utils';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     // Get today's date string in local YYYY-MM-DD format
     const today = new Date();
@@ -21,8 +21,8 @@ export async function GET() {
     const chartDataMap: Record<string, { date: string, good: number, bad: number }> = {};
 
     production.forEach((row: any) => {
-      const d = new Date(row.date_added);
-      if (!row.date_added || isNaN(d.getTime())) return; // skip rows with invalid dates
+      const d = new Date(row.date);
+      if (!row.date || isNaN(d.getTime())) return; // skip rows with invalid dates
       
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const isToday = dateStr === todayStr;
@@ -49,8 +49,8 @@ export async function GET() {
     let todaySalesQty = 0;
 
     sales.forEach((row: any) => {
-      const d = new Date(row.date_added);
-      if (!row.date_added || isNaN(d.getTime())) return; // skip rows with invalid dates
+      const d = new Date(row.date);
+      if (!row.date || isNaN(d.getTime())) return; // skip rows with invalid dates
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const isToday = dateStr === todayStr;
       const eggs = parseToTotalEggs(row.quantity);
@@ -62,10 +62,21 @@ export async function GET() {
       }
     });
 
-    // Format chart data (last 7 active days)
+    const { searchParams } = new URL(request.url);
+    const period = searchParams.get('period') || '7d';
+
+    let daysToInclude = 7;
+    if (period === '1m') daysToInclude = 30;
+    else if (period === '3m') daysToInclude = 90;
+    else if (period === '6m') daysToInclude = 180;
+    else if (period === '1y') daysToInclude = 365;
+    else if (period === '5y') daysToInclude = 1825;
+
+    const cutoffTime = today.getTime() - daysToInclude * 24 * 60 * 60 * 1000;
+
     const chartData = Object.values(chartDataMap)
+      .filter(d => new Date(d.date).getTime() >= cutoffTime)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-7)
       .map(d => ({
         date: d.date,
         good: normalizeQuantity(d.good),
@@ -92,13 +103,13 @@ export async function GET() {
     const toTime = (v: any) => { const t = new Date(v).getTime(); return isNaN(t) ? 0 : t; };
 
     // Group production by location — each location shown once with good + bad combined
-    const locationMap: Record<string, { location: string; good: number; bad: number; date_added: string }> = {};
+    const locationMap: Record<string, { location: string; good: number; bad: number; date: string }> = {};
     production
-      .sort((a: any, b: any) => toTime(b.date_added) - toTime(a.date_added))
+      .sort((a: any, b: any) => toTime(b.date) - toTime(a.date))
       .forEach((row: any) => {
         const loc = row.location;
         if (!locationMap[loc]) {
-          locationMap[loc] = { location: loc, good: 0, bad: 0, date_added: row.date_added };
+          locationMap[loc] = { location: loc, good: 0, bad: 0, date: row.date };
         }
         const eggs = parseToTotalEggs(row.quantity);
         if (row.conditionn === 'Good') locationMap[loc].good += eggs;
@@ -109,13 +120,13 @@ export async function GET() {
       .slice(0, 5)
       .map(r => ({
         location: r.location,
-        date_added: r.date_added,
+        date: r.date,
         goodQuantity: normalizeQuantity(r.good),
         badQuantity: normalizeQuantity(r.bad),
       }));
 
     const recentSales = sales
-      .sort((a: any, b: any) => toTime(b.date_added) - toTime(a.date_added))
+      .sort((a: any, b: any) => toTime(b.date) - toTime(a.date))
       .slice(0, 5);
 
     return NextResponse.json({

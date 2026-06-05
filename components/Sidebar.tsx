@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { Warehouse, LogOut, LayoutDashboard, Settings } from 'lucide-react';
 
 const NAV = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/', icon: Warehouse, label: 'Egg Godown' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
+  { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/godown', icon: Warehouse, label: 'Egg Godown' },
+  { href: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 
 /* Animated hamburger → X icon */

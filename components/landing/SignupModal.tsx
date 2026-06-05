@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import Link from 'next/link';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Check, X, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Check, X } from 'lucide-react';
 
 /* ─── Password rules ────────────────────────────────────── */
 const RULES = [
@@ -23,7 +22,13 @@ function FieldError({ msg }: { msg: string }) {
   ) : null;
 }
 
-export default function SignupPage() {
+interface SignupModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSwitchToLogin: () => void;
+}
+
+export default function SignupModal({ isOpen, onClose, onSwitchToLogin }: SignupModalProps) {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
@@ -33,6 +38,16 @@ export default function SignupPage() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [serverError, setServerError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => { document.body.style.overflow = 'auto'; };
+  }, [isOpen]);
+
 
   /* ─── Live validation ─────────────────────────────────── */
   const errors = useMemo(() => {
@@ -70,7 +85,7 @@ export default function SignupPage() {
         body: JSON.stringify(formData),
       });
       if (res.ok) {
-        router.push('/login');
+        onSwitchToLogin();
       } else {
         const d = await res.json();
         setServerError(d.error || 'Signup failed. Please try again.');
@@ -95,29 +110,40 @@ export default function SignupPage() {
     transition: 'all 0.2s ease',
   };
 
+  if (!isOpen) return null;
+
   return (
     <div style={{
-      minHeight: '100svh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'var(--bg)', /* Soft muted background matching app */
-      fontFamily: 'var(--font-sans)',
+      position: 'fixed', inset: 0, zIndex: 100,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
       padding: '24px',
     }}>
       {/* Floating Card Container */}
-      <div style={{
+      <div className="animate-fadeup" style={{
         width: '100%',
-        maxWidth: '1080px',
+        maxWidth: '900px',
         background: '#FFFFFF',
         borderRadius: '32px',
         display: 'flex',
         padding: '14px',
         gap: '14px',
-        boxShadow: '0 30px 60px rgba(0,0,0,0.08)',
+        boxShadow: '0 30px 60px rgba(0,0,0,0.15)',
         position: 'relative',
-        minHeight: '680px',
+        maxHeight: '90vh',
       }}>
+
+        {/* Floating close button */}
+        <button onClick={onClose} style={{
+          position: 'absolute', top: '24px', right: '24px', zIndex: 10,
+          width: '40px', height: '40px', borderRadius: '50%',
+          background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-primary)', border: 'none', cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'transform 0.2s',
+        }} onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
+          <X size={18} />
+        </button>
 
         {/* Left: Form Area */}
         <div style={{
@@ -130,16 +156,16 @@ export default function SignupPage() {
           {/* Top header area */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-              <Image src="/logo.png" alt="Logo" width={60} height={60} style={{ objectFit: 'contain' }} />
-              <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>Sufra Farms</span>
+              <Image src="/logo.png" alt="Logo" width={40} height={40} style={{ objectFit: 'contain', width: 'auto', height: 'auto' }} />
+              <span style={{ fontSize: '20px', fontWeight: 800, color: '#2E5C1A' }}>Sunfra Farms</span>
             </div>
           </div>
 
           <div style={{ maxWidth: '420px', margin: '0 auto', width: '100%', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ marginBottom: '28px', textAlign: 'center' }}>
-              <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              <h2 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                 Create an account
-              </h1>
+              </h2>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
                 Sign up to manage your farm's production and sales
               </p>
@@ -268,7 +294,7 @@ export default function SignupPage() {
             </form>
 
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '32px', fontSize: '12px', color: 'var(--text-muted)' }}>
-              <span>Have an account? <Link href="/login" style={{ color: 'var(--text-primary)', fontWeight: 600, textDecoration: 'underline' }}>Sign in</Link></span>
+              <span>Have an account? <button onClick={onSwitchToLogin} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 600, textDecoration: 'underline' }}>Sign in</button></span>
             </div>
           </div>
         </div>
@@ -282,9 +308,10 @@ export default function SignupPage() {
           display: 'none',
         }} className="desktop-image-panel">
           <Image
-            src="/signup-bg.png"
+            src="/login-bg.png"
             alt="Farm landscape"
             fill
+            sizes="40vw"
             style={{ objectFit: 'cover' }}
             priority
           />
@@ -293,18 +320,6 @@ export default function SignupPage() {
             position: 'absolute', inset: 0,
             background: 'linear-gradient(to right, rgba(0,0,0,0.1), transparent)',
           }} />
-
-          {/* Floating close button */}
-          <Link href="/" style={{
-            position: 'absolute', top: '16px', right: '16px',
-            width: '40px', height: '40px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--text-primary)', textDecoration: 'none',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'transform 0.2s',
-          }} onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
-            <X size={18} />
-          </Link>
         </div>
       </div>
       <style>{`

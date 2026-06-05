@@ -1,20 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, X } from 'lucide-react';
 
-function FieldError({ msg }: { msg: string }) {
-  return msg ? (
-    <p style={{ fontSize: '11px', color: '#EF4444', marginTop: '6px', display: 'flex', alignItems: 'center', gap: 4 }}>
-      <X size={11} strokeWidth={3} /> {msg}
-    </p>
-  ) : null;
+interface LoginModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSwitchToSignup: () => void;
 }
 
-export default function LoginPage() {
+export default function LoginModal({ isOpen, onClose, onSwitchToSignup }: LoginModalProps) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +19,18 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Prevent background scrolling when open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => { document.body.style.overflow = 'auto'; };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +43,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password, rememberMe }),
       });
       if (res.ok) {
-        router.push('/');
+        router.push('/admin/godown');
         router.refresh();
       } else {
         const data = await res.json();
@@ -60,31 +69,38 @@ export default function LoginPage() {
     transition: 'all 0.2s ease',
   };
 
-  const formValid = email.trim().length > 0 && password.length > 0;
-
   return (
     <div style={{
-      minHeight: '100svh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'var(--bg)',
-      fontFamily: 'var(--font-sans)',
+      position: 'fixed', inset: 0, zIndex: 100,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)',
       padding: '24px',
     }}>
       {/* Floating Card Container */}
-      <div style={{
+      <div className="animate-fadeup" style={{
         width: '100%',
-        maxWidth: '1080px',
+        maxWidth: '900px',
         background: '#FFFFFF',
         borderRadius: '32px',
         display: 'flex',
         padding: '14px',
         gap: '14px',
-        boxShadow: '0 30px 60px rgba(0,0,0,0.08)',
+        boxShadow: '0 30px 60px rgba(0,0,0,0.15)',
         position: 'relative',
-        minHeight: '680px',
+        maxHeight: '90vh',
       }}>
+
+        {/* Floating close button */}
+        <button onClick={onClose} style={{
+          position: 'absolute', top: '24px', right: '24px', zIndex: 10,
+          width: '40px', height: '40px', borderRadius: '50%',
+          background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-primary)', border: 'none', cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'transform 0.2s',
+        }} onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
+          <X size={18} />
+        </button>
 
         {/* Left: Form Area */}
         <div style={{
@@ -97,16 +113,16 @@ export default function LoginPage() {
           {/* Top header area */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-              <Image src="/logo.png" alt="Logo" width={60} height={60} style={{ objectFit: 'contain' }} />
-              <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary)' }}>Sufra Farms</span>
+              <Image src="/logo.png" alt="Logo" width={40} height={40} style={{ objectFit: 'contain', width: 'auto', height: 'auto' }} />
+              <span style={{ fontSize: '20px', fontWeight: 800, color: '#2E5C1A' }}>Sunfra Farms</span>
             </div>
           </div>
 
           <div style={{ maxWidth: '420px', margin: '0 auto', width: '100%', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-              <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              <h2 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                 Welcome back
-              </h1>
+              </h2>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
                 Sign in and get back to managing your farm
               </p>
@@ -188,20 +204,8 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Alternative sign in buttons styling similar to dribbble (optional decorative) */}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-              <button style={{ flex: 1, padding: '12px', borderRadius: '16px', border: '1px solid #E5E7EB', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.19 2.29-.88 3.56-.81 1.76.08 3.01.81 3.86 2.05-3.32 1.95-2.76 6.01.37 7.23-.74 1.76-1.58 3.23-2.87 3.7m-2.92-12.7c.69-1.04 1.19-2.31.96-3.58-1.25.1-2.61.85-3.37 1.83-.67.87-1.23 2.15-.96 3.42 1.34.1 2.62-.64 3.37-1.67" /></svg>
-                Apple
-              </button>
-              <button style={{ flex: 1, padding: '12px', borderRadius: '16px', border: '1px solid #E5E7EB', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z" /><path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.565 24 12.255 24z" /><path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 000 10.76l3.98-3.09z" /><path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0 7.565 0 3.515 2.7 1.545 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z" /></svg>
-                Google
-              </button>
-            </div>
-
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '32px', fontSize: '12px', color: 'var(--text-muted)' }}>
-              <span>No account? <Link href="/signup" style={{ color: 'var(--text-primary)', fontWeight: 600, textDecoration: 'underline' }}>Sign up</Link></span>
+              <span>No account? <button onClick={onSwitchToSignup} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 600, textDecoration: 'underline' }}>Sign up</button></span>
             </div>
           </div>
         </div>
@@ -218,6 +222,7 @@ export default function LoginPage() {
             src="/login-bg.png"
             alt="Farm landscape"
             fill
+            sizes="40vw"
             style={{ objectFit: 'cover' }}
             priority
           />
@@ -226,18 +231,6 @@ export default function LoginPage() {
             position: 'absolute', inset: 0,
             background: 'linear-gradient(to right, rgba(0,0,0,0.1), transparent)',
           }} />
-
-          {/* Floating close button */}
-          <Link href="/" style={{
-            position: 'absolute', top: '16px', right: '16px',
-            width: '40px', height: '40px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--text-primary)', textDecoration: 'none',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'transform 0.2s',
-          }} onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
-            <X size={18} />
-          </Link>
         </div>
       </div>
       <style>{`

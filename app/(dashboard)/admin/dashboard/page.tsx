@@ -3,22 +3,25 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatQuantityDisplay } from '@/lib/quantity-utils';
+import Link from 'next/link';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [chartPeriod, setChartPeriod] = useState('7d');
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/dashboard');
+        const res = await fetch(`/api/dashboard?period=${chartPeriod}`);
         if (res.ok) setData(await res.json());
       } catch (err) {
         console.error('Failed to fetch dashboard data', err);
       }
       setIsLoading(false);
     })();
-  }, []);
+  }, [chartPeriod]);
 
   if (isLoading) {
     return (
@@ -119,13 +122,28 @@ export default function DashboardPage() {
       </div>
 
       {/* Chart + Recent Activity */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', alignItems: 'start' }} className="animate-fadeup-4">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', alignItems: 'stretch' }} className="animate-fadeup-4">
         {/* Chart */}
-        <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '24px' }}>
-          <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '20px' }}>
-            Production Trends <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '12px' }}>· Last 7 active days</span>
-          </p>
-          <div style={{ height: 280 }}>
+        <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '24px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Production Trends
+            </p>
+            <CustomSelect
+              value={chartPeriod}
+              onChange={(val) => setChartPeriod(val)}
+              options={[
+                { value: '7d', label: 'Last 7 Days' },
+                { value: '1m', label: '1 Month' },
+                { value: '3m', label: '3 Months' },
+                { value: '6m', label: '6 Months' },
+                { value: '1y', label: '1 Year' },
+                { value: '5y', label: '5 Years' },
+              ]}
+              style={{ width: '130px' }}
+            />
+          </div>
+          <div style={{ flex: 1, minHeight: 280 }}>
             {chartData && chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barGap={4}>
@@ -134,7 +152,7 @@ export default function DashboardPage() {
                     dataKey="date"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif' }}
+                    tick={false}
                     dy={8}
                   />
                   <YAxis
@@ -165,10 +183,11 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Production */}
-          <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Recent Production</p>
-            </div>
+        <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Recent Production</p>
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             {recentProduction.length > 0 ? recentProduction.map((item: any, i: number) => (
               <div key={i} style={{
                 padding: '12px 20px',
@@ -181,7 +200,7 @@ export default function DashboardPage() {
                 <div>
                   <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.location}</p>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
-                    {item.date_added ? new Date(item.date_added).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
+                    {item.date ? new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -203,12 +222,19 @@ export default function DashboardPage() {
               <div style={{ padding: '24px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>No recent production</div>
             )}
           </div>
+          {recentProduction.length > 0 && (
+            <Link href="/admin/godown/production" style={{ marginTop: 'auto', display: 'block', padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textDecoration: 'none', borderTop: '1px solid var(--border-light)' }}>
+              Show more
+            </Link>
+          )}
+        </div>
 
-          {/* Recent Sales */}
-          <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Recent Sales</p>
-            </div>
+        {/* Recent Sales */}
+        <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Recent Sales</p>
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             {recentSales.length > 0 ? recentSales.map((item: any) => (
               <div key={item.id} style={{
                 padding: '12px 20px',
@@ -220,7 +246,7 @@ export default function DashboardPage() {
                 <div>
                   <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.name}</p>
                   <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
-                    {item.date_added ? new Date(item.date_added).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
+                    {item.date ? new Date(item.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
                   </p>
                 </div>
                 <span style={{
@@ -238,6 +264,12 @@ export default function DashboardPage() {
               <div style={{ padding: '24px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>No recent sales</div>
             )}
           </div>
+          {recentSales.length > 0 && (
+            <Link href="/admin/godown/sales" style={{ marginTop: 'auto', display: 'block', padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: 'var(--primary)', textDecoration: 'none', borderTop: '1px solid var(--border-light)' }}>
+              Show more
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

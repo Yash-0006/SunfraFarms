@@ -47,7 +47,7 @@
 /* ─── Base Reset ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; scroll-behavior: smooth; }
 
 body {
   font-family: var(--font-sans);
@@ -95,6 +95,7 @@ body {
 .btn-primary {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 10px 20px;
   background: var(--primary);
@@ -114,6 +115,7 @@ body {
 .btn-ghost {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 8px 16px;
   background: transparent;
@@ -146,6 +148,17 @@ body {
   box-shadow: 0 0 0 3px rgba(19,23,31,0.08);
   background: var(--white);
 }
+
+.date-picker-custom::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .input::placeholder { color: var(--text-muted); }
 
 /* ─── Table ──────────────────────────────────────────────────── */
