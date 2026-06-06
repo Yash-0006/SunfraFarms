@@ -11,38 +11,41 @@ import { parseToTotalEggs, normalizeQuantity, formatTraysLooseDisplay } from '@/
 
 export async function queryProduction(params: { date?: string; period?: string }) {
   try {
-    let queryStr = 'SELECT * FROM egg_production';
-    const queryParams: any[] = [];
+    const rows: any = await query('SELECT * FROM egg_production ORDER BY id DESC', []);
 
-    if (params.date) {
-      queryStr += ' WHERE DATE(date) = ?';
-      queryParams.push(params.date);
-    } else if (params.period && params.period !== 'all') {
-      const today = new Date();
-      let days = 0;
-      if (params.period === 'today') days = 0;
-      else if (params.period === 'week') days = 7;
-      else if (params.period === 'month') days = 30;
-      else if (params.period === 'year') days = 365;
+    const today = new Date();
+    
+    const filteredRows = rows.filter((row: any) => {
+      if (!row.date) return false;
+      const d = new Date(row.date);
+      if (isNaN(d.getTime())) return false;
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      
+      if (params.date) {
+        return dateStr === params.date;
+      } else if (params.period && params.period !== 'all') {
+        let days = 0;
+        if (params.period === 'today') days = 0;
+        else if (params.period === 'yesterday') days = 1;
+        else if (params.period === 'week') days = 7;
+        else if (params.period === 'month') days = 30;
+        else if (params.period === 'year') days = 365;
 
-      if (params.period === 'today') {
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        queryStr += ' WHERE DATE(date) = ?';
-        queryParams.push(todayStr);
-      } else {
-        const cutoff = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
-        const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
-        queryStr += ' WHERE DATE(date) >= ?';
-        queryParams.push(cutoffStr);
+        if (params.period === 'today' || params.period === 'yesterday') {
+          const targetDate = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
+          const targetStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+          return dateStr === targetStr;
+        } else {
+          const cutoff = today.getTime() - days * 24 * 60 * 60 * 1000;
+          return d.getTime() >= cutoff;
+        }
       }
-    }
-
-    queryStr += ' ORDER BY id DESC';
-    const rows: any = await query(queryStr, queryParams);
+      return true;
+    });
 
     // Group by location
     const grouped: Record<string, { good: number; damaged: number; big: number; small: number }> = {};
-    rows.forEach((row: any) => {
+    filteredRows.forEach((row: any) => {
       const loc = row.location;
       if (!grouped[loc]) grouped[loc] = { good: 0, damaged: 0, big: 0, small: 0 };
       const eggs = parseToTotalEggs(row.quantity);
@@ -80,39 +83,42 @@ export async function queryProduction(params: { date?: string; period?: string }
 
 export async function querySales(params: { date?: string; period?: string }) {
   try {
-    let queryStr = 'SELECT * FROM egg_sale';
-    const queryParams: any[] = [];
+    const rows: any = await query('SELECT * FROM egg_sale ORDER BY id DESC', []);
 
-    if (params.date) {
-      queryStr += ' WHERE DATE(date) = ?';
-      queryParams.push(params.date);
-    } else if (params.period && params.period !== 'all') {
-      const today = new Date();
-      let days = 0;
-      if (params.period === 'today') days = 0;
-      else if (params.period === 'week') days = 7;
-      else if (params.period === 'month') days = 30;
-      else if (params.period === 'year') days = 365;
+    const today = new Date();
+    
+    const filteredRows = rows.filter((row: any) => {
+      if (!row.date) return false;
+      const d = new Date(row.date);
+      if (isNaN(d.getTime())) return false;
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      
+      if (params.date) {
+        return dateStr === params.date;
+      } else if (params.period && params.period !== 'all') {
+        let days = 0;
+        if (params.period === 'today') days = 0;
+        else if (params.period === 'yesterday') days = 1;
+        else if (params.period === 'week') days = 7;
+        else if (params.period === 'month') days = 30;
+        else if (params.period === 'year') days = 365;
 
-      if (params.period === 'today') {
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        queryStr += ' WHERE DATE(date) = ?';
-        queryParams.push(todayStr);
-      } else {
-        const cutoff = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
-        const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
-        queryStr += ' WHERE DATE(date) >= ?';
-        queryParams.push(cutoffStr);
+        if (params.period === 'today' || params.period === 'yesterday') {
+          const targetDate = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
+          const targetStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+          return dateStr === targetStr;
+        } else {
+          const cutoff = today.getTime() - days * 24 * 60 * 60 * 1000;
+          return d.getTime() >= cutoff;
+        }
       }
-    }
-
-    queryStr += ' ORDER BY id DESC';
-    const rows: any = await query(queryStr, queryParams);
+      return true;
+    });
 
     let totalBig = 0;
     let totalSmall = 0;
 
-    const result = rows.map((row: any) => {
+    const result = filteredRows.map((row: any) => {
       const bigEggs = parseToTotalEggs(row.big_quantity);
       const smallEggs = parseToTotalEggs(row.small_quantity);
       totalBig += bigEggs;

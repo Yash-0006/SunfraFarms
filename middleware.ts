@@ -5,7 +5,7 @@ import { jwtVerify } from 'jose';
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-do-not-use-in-prod');
 
 // Define routes that don't require authentication
-const publicRoutes = ['/login', '/signup', '/api/auth/login', '/api/auth/signup', '/api/seed'];
+const publicRoutes = ['/', '/api/auth/login', '/api/auth/signup', '/api/seed'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
 
   // If user is on login/signup and already has a token, redirect to dashboard
-  const isAuthRoute = pathname === '/login' || pathname === '/signup';
+  const isAuthRoute = pathname === '/';
   if (isAuthRoute) {
     if (token) {
       try {
@@ -33,7 +33,7 @@ export async function middleware(request: NextRequest) {
 
   if (!token) {
     // No token found, redirect to login
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL('/?login=true', request.url));
   }
 
   try {
@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   } catch (error) {
     // Invalid token, redirect to login and clear cookie
-    const response = NextResponse.redirect(new URL('/login', request.url));
+    const response = NextResponse.redirect(new URL('/?login=true', request.url));
     response.cookies.delete('auth_token');
     return response;
   }

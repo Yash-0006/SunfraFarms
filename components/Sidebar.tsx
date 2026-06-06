@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Warehouse, LogOut, LayoutDashboard, Settings, ChevronDown, ChevronRight } from 'lucide-react';
+import { Warehouse, LogOut, LayoutDashboard, Settings, ChevronDown, ChevronRight, Users } from 'lucide-react';
 
 const NAV = [
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,6 +14,15 @@ const NAV = [
     subItems: [
       { href: '/admin/godown/production', label: 'Production' },
       { href: '/admin/godown/sales', label: 'Sales' }
+    ]
+  },
+  { 
+    href: '/admin/labour', 
+    icon: Users, 
+    label: 'Labour',
+    subItems: [
+      { href: '/admin/labour/registration', label: 'Registration' },
+      { href: '/admin/labour/attendance', label: 'Attendance' }
     ]
   },
   { href: '/admin/settings', icon: Settings, label: 'Settings' },
@@ -66,6 +75,9 @@ export default function Sidebar() {
     if (pathname.startsWith('/admin/godown')) {
       setExpanded(prev => ({ ...prev, '/admin/godown': true }));
     }
+    if (pathname.startsWith('/admin/labour')) {
+      setExpanded(prev => ({ ...prev, '/admin/labour': true }));
+    }
   }, [pathname]);
 
   const isActive = (href: string, exact = false) => exact ? pathname === href : pathname.startsWith(href);
@@ -73,7 +85,7 @@ export default function Sidebar() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/login');
+      router.push('/?login=true');
       router.refresh();
     } catch (e) {
       console.error('Logout failed', e);
@@ -296,6 +308,7 @@ export default function Sidebar() {
                           }
                         }}
                       >
+                        <ChevronRight size={14} style={{ marginRight: '6px', opacity: subActive ? 1 : 0.6 }} />
                         {sub.label}
                       </Link>
                     )

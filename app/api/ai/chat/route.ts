@@ -55,27 +55,40 @@ export async function POST(request: Request) {
       const errorText = await response.text();
       console.error('Groq API error:', errorText);
 
+      let recovered = false;
+
       // --- GROQ PARSER BUG RECOVERY ---
       // Groq's internal parser often crashes if Llama 3 forgets a space before the JSON arguments.
-      // We catch the `failed_generation` error and manually parse and execute the tool call!
+      // We catch the `failed_generation` error and artificially reconstruct a successful response!
       try {
         const errObj = JSON.parse(errorText);
         const failedGen = errObj.error?.failed_generation;
         if (failedGen) {
-          const match = failedGen.match(/<function=([a-zA-Z0-9_]+)\s*(\{.*?\})\s*<\/function>/is);
+          const match = failedGen.match(/<function=([a-zA-Z0-9_]+)[=>\s]*(\{[\s\S]*?\})\s*<\/function>/i);
           if (match) {
             const toolName = match[1];
-            const toolArgs = JSON.parse(match[2]);
-            console.log('Recovered tool call from Groq error:', toolName, toolArgs);
+            const toolArgsStr = match[2];
+            console.log('Recovered tool call from Groq error:', toolName, toolArgsStr);
             
-            const toolResult = await executeTool(toolName, toolArgs);
-            if (toolResult.action) allActions.push(toolResult);
-
-            return NextResponse.json({
-              message: toolResult.message || toolResult.error || "I've processed your request successfully!",
-              actions: allActions,
-              done: true,
-            });
+            // Reconstruct a valid successful response so the standard tool-handling loop takes over
+            response = new Response(JSON.stringify({
+              choices: [{
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: [{
+                    id: 'call_recovered_' + Date.now(),
+                    type: 'function',
+                    function: {
+                      name: toolName,
+                      arguments: toolArgsStr
+                    }
+                  }]
+                }
+              }]
+            }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+            
+            recovered = true;
           }
         }
       } catch (e) {
@@ -83,10 +96,12 @@ export async function POST(request: Request) {
       }
       // --------------------------------
 
-      return NextResponse.json(
-        { error: 'Failed to communicate with AI model. Please check your Groq API key.' },
-        { status: 502 }
-      );
+      if (!recovered) {
+        return NextResponse.json(
+          { error: 'Failed to communicate with AI model. Please check your Groq API key.' },
+          { status: 502 }
+        );
+      }
     }
 
     let result = await response.json();

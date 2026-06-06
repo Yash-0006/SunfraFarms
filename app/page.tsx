@@ -16,6 +16,13 @@ export default function LandingPage() {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('login=true')) {
+      setShowLogin(true);
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
+
   return (
     <div style={{ minHeight: '100svh', background: 'var(--bg)' }}>
       <LandingNavbar onOpenLogin={() => setShowLogin(true)} onOpenSignup={() => setShowSignup(true)} />

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, X } from 'lucide-react';
+import { useToast } from '@/components/ui/ToastProvider';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface LoginModalProps {
 
 export default function LoginModal({ isOpen, onClose, onSwitchToSignup }: LoginModalProps) {
   const router = useRouter();
+  const toast = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -43,14 +45,19 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }: LoginM
         body: JSON.stringify({ email, password, rememberMe }),
       });
       if (res.ok) {
+        toast.success('Logged in successfully!');
         router.push('/admin/godown');
         router.refresh();
       } else {
         const data = await res.json();
-        setErrorMsg(data.error || 'Login failed');
+        const msg = data.error || 'Login failed';
+        setErrorMsg(msg);
+        toast.error(msg);
       }
     } catch {
-      setErrorMsg('Something went wrong. Please try again.');
+      const msg = 'Something went wrong. Please try again.';
+      setErrorMsg(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

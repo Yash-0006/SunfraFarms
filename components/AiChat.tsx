@@ -16,6 +16,7 @@ const QUICK_PROMPTS = [
   { label: "📊 Today's production", prompt: "What is today's egg production?" },
   { label: '💰 Today\'s sales', prompt: "Show me today's sales" },
   { label: '📦 Current stock', prompt: 'What is the current stock?' },
+  { label: '➕ Record a production', prompt: 'I want to record a new production' },
   { label: '➕ Record a sale', prompt: 'I want to record a new sale' },
 ];
 
@@ -26,6 +27,10 @@ export default function AiChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pulseVisible, setPulseVisible] = useState(true);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, initX: 0, initY: 0 });
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
@@ -39,7 +44,7 @@ export default function AiChat() {
       if (saved) {
         setMessages(JSON.parse(saved));
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // Save messages to sessionStorage
@@ -47,7 +52,7 @@ export default function AiChat() {
     if (messages.length > 0) {
       try {
         sessionStorage.setItem('sf_ai_chat', JSON.stringify(messages));
-      } catch {}
+      } catch { }
     }
   }, [messages]);
 
@@ -179,7 +184,7 @@ export default function AiChat() {
       aiContext.navigate('/admin/godown/sales');
       return;
     }
-    
+
     if (isProduction && !currentPath.includes('/production')) {
       sessionStorage.setItem('pending_form_fill', JSON.stringify(action));
       aiContext.navigate('/admin/godown/production');
@@ -213,18 +218,20 @@ export default function AiChat() {
       <div
         ref={chatPanelRef}
         style={{
+          fontFamily: 'var(--font-sans)',
           position: 'fixed',
           bottom: 90,
           right: 24,
-          width: 400,
+          width: 380,
           maxWidth: 'calc(100vw - 48px)',
-          height: isOpen ? 560 : 0,
-          maxHeight: 'calc(100vh - 140px)',
-          background: 'var(--white)',
-          borderRadius: 20,
-          boxShadow: isOpen ? '0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)' : 'none',
+          height: isOpen ? 600 : 0,
+          maxHeight: 'calc(100vh - 120px)',
+          background: 'var(--surface)',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: isOpen ? '0 12px 48px rgba(0,0,0,0.12), 0 0 0 1px var(--border)' : 'none',
           overflow: 'hidden',
-          transition: 'height 0.35s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s, opacity 0.25s',
+          transform: `translate(${offset.x}px, ${offset.y}px)`,
+          transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
           zIndex: 999,
@@ -235,62 +242,63 @@ export default function AiChat() {
         {/* Header */}
         <div style={{
           padding: '16px 20px',
-          background: 'var(--primary)',
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: 'var(--primary)',
+              width: 36,
+              height: 36,
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--grey-bg)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <Sparkles size={17} color="#fff" />
+              <Sparkles size={18} color="var(--primary)" />
             </div>
             <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', margin: 0 }}>SunfraFarms AI</p>
-              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', margin: 0, fontWeight: 500 }}>
-              Powered by Groq Llama 3.3
+              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.01em' }}>SunfraFarms AI</p>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>
+                Powered by Groq Llama 3.3
               </p>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
             {messages.length > 0 && (
               <button
                 onClick={clearChat}
                 title="Clear chat"
                 style={{
-                  width: 30, height: 30, borderRadius: 8,
-                  border: 'none', background: 'rgba(255,255,255,0.1)',
-                  color: 'rgba(255,255,255,0.7)', cursor: 'pointer',
+                  width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+                  border: 'none', background: 'transparent',
+                  color: 'var(--text-secondary)', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'background 0.15s',
                 }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--grey-bg)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <RefreshCw size={13} />
+                <RefreshCw size={14} />
               </button>
             )}
             <button
               onClick={() => setIsOpen(false)}
               style={{
-                width: 30, height: 30, borderRadius: 8,
-                border: 'none', background: 'rgba(255,255,255,0.1)',
-                color: 'rgba(255,255,255,0.7)', cursor: 'pointer',
+                width: 32, height: 32, borderRadius: 'var(--radius-sm)',
+                border: 'none', background: 'transparent',
+                color: 'var(--text-secondary)', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'background 0.15s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--grey-bg)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -299,56 +307,56 @@ export default function AiChat() {
         <div style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '16px',
+          padding: '20px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
-          background: '#f8f9fb',
+          gap: 16,
+          background: 'var(--bg)',
         }}>
           {messages.length === 0 && !isLoading && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 20, padding: '20px 0' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 24, padding: '20px 0' }}>
               <div style={{
-                width: 56, height: 56, borderRadius: 16,
-                background: 'var(--primary)',
+                width: 64, height: 64, borderRadius: 'var(--radius-lg)',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 8px 24px rgba(102,126,234,0.3)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
               }}>
-                <Sparkles size={26} color="#fff" />
+                <Sparkles size={28} color="var(--primary)" />
               </div>
               <div style={{ textAlign: 'center' }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px 0', letterSpacing: '-0.01em' }}>
                   How can I help you?
                 </p>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
                   Ask me anything about your farm data.<br />
-                  Type in any language — English, Hindi, Telugu...
+                  Type in any language.
                 </p>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
                 {QUICK_PROMPTS.map((qp, i) => (
                   <button
                     key={i}
                     onClick={() => sendMessage(qp.prompt)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 14px', borderRadius: 12,
-                      background: 'var(--white)', border: '1px solid var(--border)',
-                      cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                      color: 'var(--text-secondary)',
+                      padding: '12px 16px', borderRadius: 'var(--radius-md)',
+                      background: 'var(--surface)', border: '1px solid var(--border)',
+                      cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                      color: 'var(--text-primary)',
                       transition: 'all 0.15s',
                       fontFamily: 'inherit',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
                     }}
                     onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.borderColor = 'var(--primary)';
-                      (e.currentTarget as HTMLElement).style.background = 'var(--grey-bg)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'var(--text-muted)';
                     }}
                     onMouseLeave={e => {
                       (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
-                      (e.currentTarget as HTMLElement).style.background = 'var(--white)';
                     }}
                   >
                     <span>{qp.label}</span>
-                    <ChevronRight size={13} style={{ opacity: 0.4 }} />
+                    <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
                   </button>
                 ))}
               </div>
@@ -360,37 +368,40 @@ export default function AiChat() {
               key={msg.id}
               style={{
                 display: 'flex',
-                gap: 8,
+                gap: 12,
                 flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
                 alignItems: 'flex-start',
               }}
             >
               {/* Avatar */}
               <div style={{
-                width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                width: 32, height: 32, borderRadius: 'var(--radius-sm)', flexShrink: 0,
                 background: msg.role === 'user'
                   ? 'var(--primary)'
-                  : 'var(--primary)',
+                  : 'var(--surface)',
+                border: msg.role === 'assistant' ? '1px solid var(--border)' : 'none',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: msg.role === 'assistant' ? '0 2px 4px rgba(0,0,0,0.02)' : 'none'
               }}>
                 {msg.role === 'user'
-                  ? <User size={14} color="#fff" />
-                  : <Sparkles size={14} color="#fff" />
+                  ? <User size={16} color="#fff" />
+                  : <Sparkles size={16} color="var(--primary)" />
                 }
               </div>
 
               {/* Bubble */}
               <div style={{
-                maxWidth: '78%',
-                padding: '10px 14px',
-                borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                background: msg.role === 'user' ? 'var(--primary)' : 'var(--white)',
+                maxWidth: '82%',
+                padding: '12px 16px',
+                borderRadius: msg.role === 'user' ? 'var(--radius-md) var(--radius-md) 4px var(--radius-md)' : 'var(--radius-md) var(--radius-md) var(--radius-md) 4px',
+                background: msg.role === 'user' ? 'var(--primary)' : 'var(--surface)',
                 color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
-                fontSize: 13,
-                lineHeight: 1.55,
+                fontSize: 14,
+                lineHeight: 1.6,
                 fontWeight: 500,
-                boxShadow: msg.role === 'user' ? 'none' : '0 1px 3px rgba(0,0,0,0.06)',
+                boxShadow: msg.role === 'user' ? 'none' : '0 2px 8px rgba(0,0,0,0.04)',
                 border: msg.role === 'user' ? 'none' : '1px solid var(--border)',
+                letterSpacing: '-0.01em',
               }}>
                 <div
                   dangerouslySetInnerHTML={{ __html: formatMessageContent(msg.content) }}
@@ -398,7 +409,7 @@ export default function AiChat() {
 
                 {/* Action buttons for fill_form */}
                 {msg.actions && msg.actions.length > 0 && (
-                  <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {msg.actions.map((action: any, i: number) => {
                       if (action.action === 'fill_form') {
                         return (
@@ -406,11 +417,11 @@ export default function AiChat() {
                             key={i}
                             onClick={() => handleFormFill(action)}
                             style={{
-                              padding: '5px 12px', borderRadius: 8,
+                              padding: '6px 14px', borderRadius: 'var(--radius-sm)',
                               background: 'var(--primary)',
                               color: '#fff', border: 'none', cursor: 'pointer',
-                              fontSize: 11, fontWeight: 700,
-                              display: 'flex', alignItems: 'center', gap: 4,
+                              fontSize: 12, fontWeight: 700,
+                              display: 'flex', alignItems: 'center', gap: 6,
                               transition: 'opacity 0.15s', fontFamily: 'inherit',
                             }}
                             onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
@@ -430,24 +441,25 @@ export default function AiChat() {
 
           {/* Loading indicator */}
           {isLoading && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <div style={{
-                width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                background: 'var(--primary)',
+                width: 32, height: 32, borderRadius: 'var(--radius-sm)', flexShrink: 0,
+                background: 'var(--surface)', border: '1px solid var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
               }}>
-                <Sparkles size={14} color="#fff" />
+                <Sparkles size={16} color="var(--primary)" />
               </div>
               <div style={{
-                padding: '12px 16px', borderRadius: '14px 14px 14px 4px',
-                background: 'var(--white)', border: '1px solid var(--border)',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '12px 16px', borderRadius: 'var(--radius-md) var(--radius-md) var(--radius-md) 4px',
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                display: 'flex', alignItems: 'center', gap: 10,
               }}>
                 <div className="ai-thinking-dots">
                   <span /><span /><span />
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>Thinking...</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>Thinking...</span>
               </div>
             </div>
           )}
@@ -456,11 +468,11 @@ export default function AiChat() {
           {error && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              padding: '10px 14px', borderRadius: 12,
+              padding: '12px 16px', borderRadius: 'var(--radius-md)',
               background: '#FFF0F0', border: '1px solid #FFD4D4',
-              fontSize: 12, color: '#DC2626', fontWeight: 500,
+              fontSize: 13, color: '#DC2626', fontWeight: 500,
             }}>
-              <AlertCircle size={14} />
+              <AlertCircle size={16} />
               {error}
             </div>
           )}
@@ -469,81 +481,110 @@ export default function AiChat() {
         </div>
 
         {/* Input Area */}
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            padding: '12px 16px',
-            borderTop: '1px solid var(--border)',
-            background: 'var(--white)',
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Type a message..."
-            disabled={isLoading}
-            style={{
-              flex: 1, padding: '10px 14px', borderRadius: 12,
-              border: '1px solid var(--border)', background: '#f8f9fb',
-              fontSize: 13, fontWeight: 500, color: 'var(--text-primary)',
-              outline: 'none', transition: 'border-color 0.15s',
-              fontFamily: 'inherit',
-            }}
-            onFocus={e => (e.target.style.borderColor = 'var(--primary)')}
-            onBlur={e => (e.target.style.borderColor = 'var(--border)')}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || isLoading}
-            style={{
-              width: 38, height: 38, borderRadius: 12,
-              background: input.trim() && !isLoading
-                ? 'var(--primary)'
-                : 'var(--grey-bg)',
-              border: 'none', cursor: input.trim() && !isLoading ? 'pointer' : 'default',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.2s', flexShrink: 0,
-            }}
-          >
-            {isLoading
-              ? <Loader2 size={16} color="var(--text-muted)" className="ai-spin" />
-              : <Send size={15} color={input.trim() ? '#fff' : 'var(--text-muted)'} />
-            }
-          </button>
-        </form>
-        
-        {/* Footer hint */}
         <div style={{
-          padding: '6px 16px 10px',
-          background: 'var(--white)',
-          textAlign: 'center',
-          fontSize: 10,
-          color: 'var(--text-muted)',
-          fontWeight: 500,
+          padding: '16px',
+          background: 'var(--surface)',
+          borderTop: '1px solid var(--border)',
           flexShrink: 0,
         }}>
-          Ctrl+J to toggle · Type in any language
+          <form
+            onSubmit={handleSubmit}
+            style={{
+              display: 'flex',
+              gap: 10,
+              alignItems: 'center',
+              background: 'var(--bg)',
+              padding: '6px',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border)',
+              transition: 'border-color 0.2s',
+            }}
+            onFocusCapture={e => {
+              (e.currentTarget as HTMLElement).style.borderColor = 'var(--text-muted)';
+            }}
+            onBlurCapture={e => {
+              (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
+            }}
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="Ask anything..."
+              disabled={isLoading}
+              style={{
+                flex: 1, padding: '8px 12px',
+                border: 'none', background: 'transparent',
+                fontSize: 14, fontWeight: 500, color: 'var(--text-primary)',
+                outline: 'none', fontFamily: 'inherit',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || isLoading}
+              style={{
+                width: 36, height: 36, borderRadius: 'var(--radius-md)',
+                background: input.trim() && !isLoading
+                  ? 'var(--primary)'
+                  : 'transparent',
+                border: input.trim() && !isLoading ? 'none' : '1px solid var(--border)',
+                cursor: input.trim() && !isLoading ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s', flexShrink: 0,
+              }}
+            >
+              {isLoading
+                ? <Loader2 size={16} color="var(--text-muted)" className="ai-spin" />
+                : <Send size={16} color={input.trim() ? '#fff' : 'var(--text-muted)'} />
+              }
+            </button>
+          </form>
+          {/* Footer hint */}
+          <div style={{
+            marginTop: 8,
+            textAlign: 'center',
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            fontWeight: 500,
+          }}>
+            Ctrl+J to toggle · Powered by SunfraFarms AI
+          </div>
         </div>
       </div>
 
       {/* Floating Action Button */}
       <button
         id="ai-chat-toggle"
-        onClick={() => setIsOpen(prev => !prev)}
-        title="SunfraFarms AI Assistant (Ctrl+J)"
+        onPointerDown={(e) => {
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          dragStart.current = { x: e.clientX, y: e.clientY, initX: offset.x, initY: offset.y };
+          setIsDragging(true);
+        }}
+        onPointerMove={(e) => {
+          if (!isDragging) return;
+          const dx = e.clientX - dragStart.current.x;
+          const dy = e.clientY - dragStart.current.y;
+          setOffset({ x: dragStart.current.initX + dx, y: dragStart.current.initY + dy });
+        }}
+        onPointerUp={(e) => {
+          setIsDragging(false);
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        }}
+        onClick={(e) => {
+          if (Math.abs(e.clientX - dragStart.current.x) < 5 && Math.abs(e.clientY - dragStart.current.y) < 5) {
+            setIsOpen(prev => !prev);
+          }
+        }}
+        title="SunfraFarms AI Assistant (Drag to move, Click to open, Ctrl+J)"
         style={{
           position: 'fixed',
           bottom: 24,
           right: 24,
-          width: 52,
-          height: 52,
-          borderRadius: 16,
+          transform: `translate(${offset.x}px, ${offset.y}px)`,
+          width: 56,
+          height: 56,
+          borderRadius: 'var(--radius-lg)',
           background: 'var(--primary)',
           border: 'none',
           cursor: 'pointer',
@@ -551,14 +592,14 @@ export default function AiChat() {
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: '0 8px 32px rgba(19, 23, 31, 0.2)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: isDragging ? 'none' : 'background 0.3s, box-shadow 0.3s',
           zIndex: 1000,
         }}
       >
         {isOpen ? (
-          <X size={22} color="#fff" />
+          <X size={24} color="#fff" />
         ) : (
-          <Sparkles size={22} color="#fff" />
+          <Sparkles size={24} color="#fff" />
         )}
 
         {/* Pulse ring */}
@@ -566,7 +607,7 @@ export default function AiChat() {
           <span style={{
             position: 'absolute',
             inset: -4,
-            borderRadius: 20,
+            borderRadius: 'calc(var(--radius-lg) + 4px)',
             border: '2px solid var(--primary)',
             animation: 'ai-pulse 2s ease-in-out infinite',
           }} />
@@ -582,21 +623,21 @@ export default function AiChat() {
 
         .ai-thinking-dots {
           display: flex;
-          gap: 4px;
+          gap: 5px;
           align-items: center;
         }
         .ai-thinking-dots span {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: var(--primary);
+          background: var(--text-muted);
           animation: ai-dot-bounce 1.4s ease-in-out infinite;
         }
         .ai-thinking-dots span:nth-child(2) { animation-delay: 0.16s; }
         .ai-thinking-dots span:nth-child(3) { animation-delay: 0.32s; }
 
         @keyframes ai-dot-bounce {
-          0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+          0%, 80%, 100% { opacity: 0.4; transform: scale(0.8); }
           40% { opacity: 1; transform: scale(1.1); }
         }
 

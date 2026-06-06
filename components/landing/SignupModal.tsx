@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
+import { useToast } from '@/components/ui/ToastProvider';
 
 /* ─── Password rules ────────────────────────────────────── */
 const RULES = [
@@ -30,6 +31,7 @@ interface SignupModalProps {
 
 export default function SignupModal({ isOpen, onClose, onSwitchToLogin }: SignupModalProps) {
   const router = useRouter();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', mobile: '', email: '', password: '',
@@ -85,13 +87,17 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }: Signup
         body: JSON.stringify(formData),
       });
       if (res.ok) {
+        toast.success('Account created successfully! Please sign in.');
         onSwitchToLogin();
       } else {
         const d = await res.json();
-        setServerError(d.error || 'Signup failed. Please try again.');
+        const errorMsg = d.error || 'Signup failed. Please try again.';
+        setServerError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch {
       setServerError('Something went wrong. Please try again.');
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }

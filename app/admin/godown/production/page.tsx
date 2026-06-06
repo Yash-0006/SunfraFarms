@@ -7,12 +7,14 @@ import { formatQuantityDisplay, formatTraysLooseDisplay } from '@/lib/quantity-u
 import CustomSelect from '@/components/ui/CustomSelect';
 import { useAiPageContext } from '@/components/AiPageContext';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/ToastProvider';
 
-export default function SalesPage() {
+export default function ProductionPage() {
+  const toast = useToast();
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingLocation, setEditingLocation] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [periodFilter, setPeriodFilter] = useState('today');
@@ -21,8 +23,11 @@ export default function SalesPage() {
   const aiContext = useAiPageContext();
   const router = useRouter();
 
-  const [name, setName] = useState('');
-  const [remarks, setRemarks] = useState('');
+  const [location, setLocation] = useState('');
+  const [goodTrays, setGoodTrays] = useState('');
+  const [goodLoose, setGoodLoose] = useState('');
+  const [damagedTrays, setDamagedTrays] = useState('');
+  const [damagedLoose, setDamagedLoose] = useState('');
   const [bigTrays, setBigTrays] = useState('');
   const [bigLoose, setBigLoose] = useState('');
   const [smallTrays, setSmallTrays] = useState('');
@@ -31,7 +36,7 @@ export default function SalesPage() {
   const fetchData = async (dateStr?: string, periodStr?: string) => {
     setIsLoading(true);
     try {
-      let url = '/api/sales';
+      let url = '/api/production';
       const params = new URLSearchParams();
       if (dateStr) params.set('date', dateStr);
       else if (periodStr) params.set('period', periodStr);
@@ -55,17 +60,20 @@ export default function SalesPage() {
     if (pending) {
       try {
         const action = JSON.parse(pending);
-        if (action.formType === 'sale') {
+        if (action.formType === 'production') {
           sessionStorage.removeItem('pending_form_fill');
           setTimeout(() => {
             const f = action.fields;
-            if (f.name) setName(f.name);
+            if (f.location) setLocation(f.location);
+            if (f.goodTrays) setGoodTrays(f.goodTrays);
+            if (f.goodLoose) setGoodLoose(f.goodLoose);
+            if (f.damagedTrays) setDamagedTrays(f.damagedTrays);
+            if (f.damagedLoose) setDamagedLoose(f.damagedLoose);
             if (f.bigTrays) setBigTrays(f.bigTrays);
             if (f.bigLoose) setBigLoose(f.bigLoose);
             if (f.smallTrays) setSmallTrays(f.smallTrays);
             if (f.smallLoose) setSmallLoose(f.smallLoose);
-            if (f.remarks) setRemarks(f.remarks);
-            setEditingId(null);
+            setEditingLocation(null);
             setIsModalOpen(true);
           }, 100);
         }
@@ -78,15 +86,18 @@ export default function SalesPage() {
     aiContext.registerDataRefresher(() => fetchData(dateFilter, periodFilter));
     aiContext.registerNavigator((url: string) => router.push(url));
     aiContext.registerFormFiller((action) => {
-      if (action.formType === 'sale') {
+      if (action.formType === 'production') {
         const f = action.fields;
-        if (f.name) setName(f.name);
+        if (f.location) setLocation(f.location);
+        if (f.goodTrays) setGoodTrays(f.goodTrays);
+        if (f.goodLoose) setGoodLoose(f.goodLoose);
+        if (f.damagedTrays) setDamagedTrays(f.damagedTrays);
+        if (f.damagedLoose) setDamagedLoose(f.damagedLoose);
         if (f.bigTrays) setBigTrays(f.bigTrays);
         if (f.bigLoose) setBigLoose(f.bigLoose);
         if (f.smallTrays) setSmallTrays(f.smallTrays);
         if (f.smallLoose) setSmallLoose(f.smallLoose);
-        if (f.remarks) setRemarks(f.remarks);
-        setEditingId(null);
+        setEditingLocation(null);
         setIsModalOpen(true);
       }
     });
@@ -107,15 +118,17 @@ export default function SalesPage() {
 
   const handleOpenModal = (item?: any) => {
     if (item) {
-      setEditingId(item.id);
-      setName(item.name);
-      setRemarks(item.remarks ?? '');
-      setTraysLoose(item.big_quantity, setBigTrays, setBigLoose);
-      setTraysLoose(item.small_quantity, setSmallTrays, setSmallLoose);
+      setEditingLocation(item.location);
+      setLocation(item.location);
+      setTraysLoose(item.goodQuantity, setGoodTrays, setGoodLoose);
+      setTraysLoose(item.damagedQuantity, setDamagedTrays, setDamagedLoose);
+      setTraysLoose(item.bigQuantity, setBigTrays, setBigLoose);
+      setTraysLoose(item.smallQuantity, setSmallTrays, setSmallLoose);
     } else {
-      setEditingId(null);
-      setName('');
-      setRemarks('');
+      setEditingLocation(null);
+      setLocation('');
+      setGoodTrays(''); setGoodLoose('');
+      setDamagedTrays(''); setDamagedLoose('');
       setBigTrays(''); setBigLoose('');
       setSmallTrays(''); setSmallLoose('');
     }
@@ -130,41 +143,59 @@ export default function SalesPage() {
       if (trays === 0 && loose === 0) return '';
       return (trays + (loose / 100)).toFixed(2);
     };
-
-    const bigQtyStr = getQty(bigTrays, bigLoose);
-    const smallQtyStr = getQty(smallTrays, smallLoose);
-    
-    if (!bigQtyStr && !smallQtyStr) {
-      alert('Please enter at least one quantity');
-      return;
-    }
-
-    const payload = { id: editingId, name, remarks, bigQuantity: bigQtyStr, smallQuantity: smallQtyStr };
+    const payload = { 
+      oldLocation: editingLocation, 
+      location, 
+      goodQuantity: getQty(goodTrays, goodLoose), 
+      damagedQuantity: getQty(damagedTrays, damagedLoose),
+      bigQuantity: getQty(bigTrays, bigLoose),
+      smallQuantity: getQty(smallTrays, smallLoose)
+    };
     try {
-      const res = await fetch('/api/sales', {
-        method: editingId ? 'PUT' : 'POST',
+      const res = await fetch('/api/production', {
+        method: editingLocation ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (res.ok) { setIsModalOpen(false); fetchData(dateFilter, periodFilter); }
-      else alert('Failed to save data');
-    } catch (error) { console.error(error); }
+      if (res.ok) { 
+        setIsModalOpen(false); 
+        fetchData(dateFilter, periodFilter); 
+        toast.success(editingLocation ? 'Production updated successfully!' : 'Production recorded successfully!');
+      }
+      else toast.error('Failed to save data');
+    } catch (error) { 
+      console.error(error); 
+      toast.error('An error occurred');
+    }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this sale record?')) return;
-    try {
-      const res = await fetch('/api/sales', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-      if (res.ok) fetchData(dateFilter, periodFilter); else alert('Failed to delete');
-    } catch (error) { console.error(error); }
+  const handleDelete = async (locationName: string) => {
+    toast.confirm({
+      title: 'Delete Production Record',
+      message: `Delete all records for ${locationName}?`,
+      onConfirm: async () => {
+        try {
+          const res = await fetch('/api/production', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ location: locationName }),
+          });
+          if (res.ok) {
+            fetchData(dateFilter, periodFilter);
+            toast.success('Production records deleted successfully');
+          } else {
+            toast.error('Failed to delete');
+          }
+        } catch (error) { 
+          console.error(error); 
+          toast.error('An error occurred');
+        }
+      }
+    });
   };
 
   const filteredData = data.filter(row =>
-    row.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    row.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
@@ -175,17 +206,18 @@ export default function SalesPage() {
       {/* Page header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }} className="animate-fadeup">
         <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Egg Sales</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Record and manage egg sales to customers.</p>
+          <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Egg Production</h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Manage daily egg collection grouped by location.</p>
         </div>
         <button className="btn-primary" onClick={() => handleOpenModal()}>
           <Plus size={16} />
-          Record Sale
+          Add Record
         </button>
       </div>
 
       {/* Table card */}
       <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }} className="animate-fadeup">
+        {/* Search bar */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -195,7 +227,7 @@ export default function SalesPage() {
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search buyer…"
+              placeholder="Search location…"
             />
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -228,62 +260,50 @@ export default function SalesPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Buyer Name</th>
-                <th style={{ textAlign: 'center' }}>Big Quantity</th>
-                <th style={{ textAlign: 'center' }}>Small Quantity</th>
-                <th>Remarks</th>
-                <th>Date</th>
+                <th>Location / Shed</th>
+                <th style={{ textAlign: 'center' }}>Good Eggs</th>
+                <th style={{ textAlign: 'center' }}>Damaged Eggs</th>
+                <th style={{ textAlign: 'center' }}>Big Eggs</th>
+                <th style={{ textAlign: 'center' }}>Small Eggs</th>
                 <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '60px 20px' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '60px 20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                       <div className="spinner" />
-                      <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading sales records...</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading production records...</span>
                     </div>
                   </td>
                 </tr>
               ) : paginatedData.length === 0 ? (
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                  {searchQuery ? 'No buyers match your search.' : 'No sales records found.'}
+                  {searchQuery ? 'No locations match your search.' : 'No production records found.'}
                 </td></tr>
-              ) : paginatedData.map((row) => (
-                <tr key={row.id}>
-                  <td style={{ fontWeight: 600 }}>{row.name}</td>
+              ) : paginatedData.map((row, idx) => (
+                <tr key={idx}>
+                  <td style={{ fontWeight: 600 }}>{row.location}</td>
                   <td style={{ textAlign: 'center' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '3px 12px',
-                      borderRadius: 99,
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      background: '#E0F2FE',
-                      color: '#0369A1',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}>
-                      {formatTraysLooseDisplay(row.big_quantity)}
+                    <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: 'var(--green-light)', color: '#3E6B22', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatTraysLooseDisplay(row.goodQuantity)}
                     </span>
                   </td>
                   <td style={{ textAlign: 'center' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '3px 12px',
-                      borderRadius: 99,
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      background: '#FEF3C7',
-                      color: '#B45309',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}>
-                      {formatTraysLooseDisplay(row.small_quantity)}
+                    <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: 'var(--pink)', color: '#8B2E2E', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatTraysLooseDisplay(row.damagedQuantity)}
                     </span>
                   </td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{row.remarks || '—'}</td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                    {row.date ? (() => { const d = new Date(row.date); return isNaN(d.getTime()) ? '—' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })() : '—'}
+                  <td style={{ textAlign: 'center' }}>
+                    <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: '#E0F2FE', color: '#0369A1', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatTraysLooseDisplay(row.bigQuantity)}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span style={{ display: 'inline-block', padding: '3px 12px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: '#FEF3C7', color: '#B45309', fontVariantNumeric: 'tabular-nums' }}>
+                      {formatTraysLooseDisplay(row.smallQuantity)}
+                    </span>
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <button
@@ -296,7 +316,7 @@ export default function SalesPage() {
                       <Edit2 size={14} />
                     </button>
                     <button
-                      onClick={() => handleDelete(row.id)}
+                      onClick={() => handleDelete(row.location)}
                       title="Delete"
                       style={{ padding: '6px 8px', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', transition: 'background 0.15s, color 0.15s', marginLeft: 4 }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FFF0F0'; (e.currentTarget as HTMLElement).style.color = '#EF4444'; }}
@@ -348,40 +368,63 @@ export default function SalesPage() {
           position: 'fixed', inset: 0, background: 'rgba(19,23,31,0.5)', backdropFilter: 'blur(6px)',
           zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
         }}>
-          <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 420, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.15)' }}>
+          <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-xl)', width: '100%', maxWidth: 500, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.15)' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {editingId ? 'Edit Sale' : 'Record Sale'}
+                {editingLocation ? 'Edit Location' : 'Add Production Record'}
               </p>
-              <button onClick={() => setIsModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 18 }}>✕</button>
+              <button type="button" onClick={() => setIsModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 18 }}>✕</button>
             </div>
-            <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Buyer Name</label>
-                <input className="input" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. John Doe" required />
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Location / Shed</label>
+                <input className="input" type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Shed A" required />
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Big Eggs Quantity</label>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <input className="input" style={{ flex: 1 }} type="number" min="0" value={bigTrays} onChange={e => setBigTrays(e.target.value)} placeholder="Big Trays" />
-                  <input className="input" style={{ flex: 1 }} type="number" min="0" max="29" value={bigLoose} onChange={e => setBigLoose(e.target.value)} placeholder="Big Loose" />
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Good Eggs */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ width: '100px', fontSize: '12px', fontWeight: 600, color: '#3E6B22' }}>Good Eggs</div>
+                  <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+                    <input className="input" style={{ flex: 1, borderColor: '#C8F096', background: 'var(--green-light)' }} type="number" min="0" value={goodTrays} onChange={e => setGoodTrays(e.target.value)} placeholder="Trays" />
+                    <input className="input" style={{ flex: 1, borderColor: '#C8F096', background: 'var(--green-light)' }} type="number" min="0" max="29" value={goodLoose} onChange={e => setGoodLoose(e.target.value)} placeholder="Loose" />
+                  </div>
+                </div>
+
+                {/* Damaged Eggs */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ width: '100px', fontSize: '12px', fontWeight: 600, color: '#8B2E2E' }}>Damaged Eggs</div>
+                  <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+                    <input className="input" style={{ flex: 1, borderColor: '#FFB0B0', background: 'var(--pink)' }} type="number" min="0" value={damagedTrays} onChange={e => setDamagedTrays(e.target.value)} placeholder="Trays" />
+                    <input className="input" style={{ flex: 1, borderColor: '#FFB0B0', background: 'var(--pink)' }} type="number" min="0" max="29" value={damagedLoose} onChange={e => setDamagedLoose(e.target.value)} placeholder="Loose" />
+                  </div>
+                </div>
+
+                {/* Big Eggs */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ width: '100px', fontSize: '12px', fontWeight: 600, color: '#0369A1' }}>Big Eggs</div>
+                  <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+                    <input className="input" style={{ flex: 1, borderColor: '#BAE6FD', background: '#E0F2FE' }} type="number" min="0" value={bigTrays} onChange={e => setBigTrays(e.target.value)} placeholder="Trays" />
+                    <input className="input" style={{ flex: 1, borderColor: '#BAE6FD', background: '#E0F2FE' }} type="number" min="0" max="29" value={bigLoose} onChange={e => setBigLoose(e.target.value)} placeholder="Loose" />
+                  </div>
+                </div>
+
+                {/* Small Eggs */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ width: '100px', fontSize: '12px', fontWeight: 600, color: '#B45309' }}>Small Eggs</div>
+                  <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+                    <input className="input" style={{ flex: 1, borderColor: '#FDE68A', background: '#FEF3C7' }} type="number" min="0" value={smallTrays} onChange={e => setSmallTrays(e.target.value)} placeholder="Trays" />
+                    <input className="input" style={{ flex: 1, borderColor: '#FDE68A', background: '#FEF3C7' }} type="number" min="0" max="29" value={smallLoose} onChange={e => setSmallLoose(e.target.value)} placeholder="Loose" />
+                  </div>
                 </div>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Small Eggs Quantity</label>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <input className="input" style={{ flex: 1 }} type="number" min="0" value={smallTrays} onChange={e => setSmallTrays(e.target.value)} placeholder="Small Trays" />
-                  <input className="input" style={{ flex: 1 }} type="number" min="0" max="29" value={smallLoose} onChange={e => setSmallLoose(e.target.value)} placeholder="Small Loose" />
-                </div>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 4 }}>1 tray = 30 eggs.</p>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Remarks</label>
-                <input className="input" type="text" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="e.g. Paid in cash" />
-              </div>
-              <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                1 tray = 30 eggs. Loose eggs should be between 0 and 29. Leave blank if 0.
+              </p>
+              <div style={{ display: 'flex', gap: 10, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
                 <button type="button" className="btn-ghost" style={{ flex: 1 }} onClick={() => setIsModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Save Sale</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Save Records</button>
               </div>
             </form>
           </div>

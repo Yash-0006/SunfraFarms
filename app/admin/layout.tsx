@@ -14,7 +14,7 @@ export default async function DashboardLayout({
   const isAuthenticated = cookieStore.has("auth_token");
 
   if (!isAuthenticated) {
-    redirect('/login');
+    redirect('/?login=true');
   }
 
   return (

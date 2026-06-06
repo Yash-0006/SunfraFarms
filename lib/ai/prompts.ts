@@ -68,7 +68,7 @@ export const TOOL_DEFINITIONS = [
         properties: {
           date: {
             type: 'string',
-            description: 'Specific date in YYYY-MM-DD format. Use this for queries like "yesterday production" or "production on 5th June".'
+            description: 'Specific date in YYYY-MM-DD format. CRITICAL: For relative terms like "yesterday" or "day before yesterday", calculate the exact YYYY-MM-DD based on the Current Date provided in the system prompt.'
           },
           period: {
             type: 'string',
@@ -90,7 +90,7 @@ export const TOOL_DEFINITIONS = [
         properties: {
           date: {
             type: 'string',
-            description: 'Specific date in YYYY-MM-DD format.'
+            description: 'Specific date in YYYY-MM-DD format. CRITICAL: For relative terms like "yesterday" or "day before yesterday", calculate the exact YYYY-MM-DD based on the Current Date provided in the system prompt.'
           },
           period: {
             type: 'string',
@@ -245,9 +245,16 @@ export const TOOL_DEFINITIONS = [
 ];
 
 export function buildContextPrompt(pageContext?: string): string {
+  const now = new Date();
+  // Adjust for India Standard Time (IST) if needed, or just use server time which is fine for the LLM
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata' });
+  const timeStr = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata' });
+  
+  let dynamicContext = `\n\n## Current Date & Time\nToday is ${dateStr}, local time is ${timeStr} (IST). You must use this current date to accurately calculate ANY relative dates the user mentions (such as "yesterday", "day before yesterday", "last Tuesday") into the exact YYYY-MM-DD format. Pass that calculated date to the 'date' parameter of the tools.`;
+
   let context = '';
   if (pageContext) {
     context = `\n\n## Current Page Context\nThe user is currently on: ${pageContext}`;
   }
-  return SYSTEM_PROMPT + context;
+  return SYSTEM_PROMPT + dynamicContext + context;
 }
