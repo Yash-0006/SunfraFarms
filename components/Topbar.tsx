@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LogOut, Settings } from 'lucide-react';
+import { useUserStore } from '@/lib/store';
 
 const PAGE_TITLES: Record<string, string> = {
   '/admin/godown': 'Egg Godown',
@@ -17,8 +18,10 @@ export default function Topbar() {
   const pathname = usePathname();
   const router   = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [userName, setUserName] = useState('Admin');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const { profile, setProfile } = useUserStore();
+  const userName = profile ? `${profile.firstName} ${profile.lastName}`.trim() || 'Admin' : 'Admin';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,8 +40,12 @@ export default function Topbar() {
       if (res.ok) {
         const data = await res.json();
         if (data.user) {
-          const fullName = `${data.user.first_name || ''} ${data.user.last_name || ''}`.trim();
-          if (fullName) setUserName(fullName);
+          setProfile({
+            firstName: data.user.first_name || '',
+            lastName: data.user.last_name || '',
+            email: data.user.email || '',
+            mobile: data.user.mobile || ''
+          });
         }
       }
     } catch (e) {
@@ -47,9 +54,9 @@ export default function Topbar() {
   };
 
   useEffect(() => {
-    fetchUser();
-    window.addEventListener('profileUpdated', fetchUser);
-    return () => window.removeEventListener('profileUpdated', fetchUser);
+    if (!profile) {
+      fetchUser();
+    }
   }, []);
 
   const handleLogout = async () => {
@@ -83,7 +90,8 @@ export default function Topbar() {
           alt="Sufra Farms"
           width={60}
           height={60}
-          style={{ objectFit: 'contain', height: 'auto' }}
+          style={{ objectFit: 'contain', width: 'auto', height: 'auto' }}
+          priority
         />
         <div>
           <p style={{
@@ -102,7 +110,7 @@ export default function Topbar() {
       </Link>
 
       {/* Right: User avatar with dropdown + Logout */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 
         {/* Avatar with hover dropdown */}
         <div
@@ -140,12 +148,12 @@ export default function Topbar() {
                 style={{ objectFit: 'cover', width: '100%', height: '100%' }}
               />
             </div>
-            <div style={{ lineHeight: 1.3 }}>
+            <div className="desktop-only" style={{ lineHeight: 1.3 }}>
               <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{userName}</p>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Farm Manager</p>
             </div>
             {/* Chevron */}
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round">
+            <svg className="desktop-only" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round">
               <path d="m6 9 6 6 6-6" />
             </svg>
           </div>
@@ -213,17 +221,18 @@ export default function Topbar() {
         </div>
 
         {/* Divider */}
-        <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
+        <div className="desktop-only" style={{ width: 1, height: 24, background: 'var(--border)' }} />
 
         {/* Logout button */}
         <button
           onClick={handleLogout}
           title="Logout"
+          className="topbar-logout-btn"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            padding: '8px 14px',
+            padding: '8px 10px',
             borderRadius: '10px',
             border: '1px solid var(--border)',
             background: 'transparent',
@@ -245,8 +254,8 @@ export default function Topbar() {
             (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
           }}
         >
-          <LogOut size={15} strokeWidth={2} />
-          Logout
+          <LogOut size={16} strokeWidth={2} />
+          <span className="desktop-only">Logout</span>
         </button>
       </div>
 
@@ -258,6 +267,9 @@ export default function Topbar() {
           opacity: 1 !important;
           pointer-events: auto !important;
           transform: translateY(0) !important;
+        }
+        @media (max-width: 600px) {
+          .desktop-only { display: none !important; }
         }
       `}</style>
     </header>

@@ -3,7 +3,8 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Warehouse, LogOut, LayoutDashboard, Settings, ChevronDown, ChevronRight, Users } from 'lucide-react';
+import { Warehouse, LogOut, LayoutDashboard, Settings, ChevronDown, ChevronRight, Users, Sparkles } from 'lucide-react';
+import { useUserStore } from '@/lib/store';
 
 const NAV = [
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -70,8 +71,12 @@ export default function Sidebar() {
   const router = useRouter();
   const [open, setOpen] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const { isAiVisible, toggleAiVisibility } = useUserStore();
 
   useEffect(() => {
+    if (window.innerWidth <= 768) {
+      setOpen(false);
+    }
     if (pathname.startsWith('/admin/godown')) {
       setExpanded(prev => ({ ...prev, '/admin/godown': true }));
     }
@@ -104,21 +109,62 @@ export default function Sidebar() {
   };
 
   return (
-    <aside style={{
-      width: open ? '200px' : '64px',
-      height: '100svh',
-      background: 'var(--white)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      flexShrink: 0,
-      position: 'sticky',
-      top: 0,
-      zIndex: 40,
-      transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1)',
-      overflow: 'hidden',
-    }}>
+    <>
+      <style>{`
+        .sidebar-wrapper {
+          flex-shrink: 0;
+          height: 100svh;
+          transition: width 0.25s cubic-bezier(0.4,0,0.2,1);
+          position: sticky;
+          top: 0;
+          z-index: 40;
+        }
+        .sidebar-inner {
+          height: 100svh;
+          background: var(--white);
+          border-right: 1px solid var(--border);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          position: absolute;
+          top: 0;
+          left: 0;
+          transition: width 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s;
+          overflow: hidden;
+        }
+        .mobile-overlay { display: none; }
+
+        /* Desktop */
+        @media (min-width: 769px) {
+          .sidebar-wrapper {
+            width: ${open ? '200px' : '64px'};
+          }
+          .sidebar-inner {
+            width: ${open ? '200px' : '64px'};
+          }
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+          .sidebar-wrapper {
+            width: 64px;
+          }
+          .sidebar-inner {
+            width: ${open ? '200px' : '64px'};
+            box-shadow: ${open ? '4px 0 24px rgba(0,0,0,0.1)' : 'none'};
+          }
+          .mobile-overlay {
+            display: ${open ? 'block' : 'none'};
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.2);
+            z-index: -1;
+          }
+        }
+      `}</style>
+      <div className="sidebar-wrapper">
+        <div className="mobile-overlay" onClick={() => setOpen(false)} />
+        <aside className="sidebar-inner">
 
       {/* Header */}
       <div style={{
@@ -320,8 +366,63 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Logout */}
-      <div style={{ padding: '12px 0 20px', width: '100%' }}>
+      {/* Logout & AI Toggle */}
+      <div style={{ padding: '12px 0 20px', width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <button
+          onClick={() => toggleAiVisibility()}
+          title="Toggle AI Chat"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: open ? '10px' : '0px',
+            margin: '0 10px',
+            padding: '10px 12px',
+            width: 'calc(100% - 20px)',
+            borderRadius: '8px',
+            background: '#111',
+            color: '#fff',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'opacity 0.15s',
+            whiteSpace: 'nowrap',
+            justifyContent: open ? 'space-between' : 'center',
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLElement).style.opacity = '0.85';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.opacity = '1';
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: open ? '10px' : '0px' }}>
+            <Sparkles size={18} strokeWidth={2} style={{ flexShrink: 0 }} color={isAiVisible ? '#C8F096' : '#fff'} />
+            <span style={{
+              fontSize: '13px',
+              fontWeight: 600,
+              opacity: open ? 1 : 0,
+              maxWidth: open ? '120px' : '0px',
+              overflow: 'hidden',
+              transition: 'opacity 0.2s, max-width 0.25s cubic-bezier(0.4,0,0.2,1)',
+            }}>
+              Ask AI
+            </span>
+          </div>
+          {open && (
+            <div style={{
+              width: 32, height: 18, borderRadius: 12,
+              background: isAiVisible ? '#C8F096' : '#333',
+              position: 'relative', transition: 'background 0.2s',
+            }}>
+              <div style={{
+                width: 14, height: 14, borderRadius: '50%', 
+                background: isAiVisible ? '#111' : '#888',
+                position: 'absolute', top: 2, left: isAiVisible ? 16 : 2,
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', 
+                boxShadow: isAiVisible ? 'none' : '0 1px 2px rgba(0,0,0,0.2)'
+              }} />
+            </div>
+          )}
+        </button>
         <button
           onClick={handleLogout}
           title="Logout"
@@ -363,6 +464,8 @@ export default function Sidebar() {
           </span>
         </button>
       </div>
-    </aside>
+        </aside>
+      </div>
+    </>
   );
 }

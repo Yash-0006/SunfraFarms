@@ -203,6 +203,14 @@ export default function ProductionPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <style>{`
+        .mobile-card-view { display: none; }
+        .desktop-table-view { display: block; overflow-x: auto; }
+        @media (max-width: 768px) {
+          .mobile-card-view { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+          .desktop-table-view { display: none; }
+        }
+      `}</style>
       {/* Page header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }} className="animate-fadeup">
         <div>
@@ -219,18 +227,18 @@ export default function ProductionPage() {
       <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }} className="animate-fadeup">
         {/* Search bar */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
+          <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 200 }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               className="input"
-              style={{ paddingLeft: 36 }}
+              style={{ paddingLeft: 36, width: '100%' }}
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search location…"
             />
           </div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', flex: '1 1 auto', justifyContent: 'flex-end' }}>
             <CustomSelect
               value={periodFilter}
               onChange={(val) => {
@@ -256,7 +264,8 @@ export default function ProductionPage() {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop Table View */}
+        <div className="desktop-table-view">
           <table className="data-table">
             <thead>
               <tr>
@@ -329,6 +338,44 @@ export default function ProductionPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="mobile-card-view">
+          {isLoading ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+              <div className="spinner" style={{ margin: '0 auto 12px' }} />
+              <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading records...</span>
+            </div>
+          ) : paginatedData.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--white)', borderRadius: 'var(--radius-lg)' }}>
+              {searchQuery ? 'No locations match your search.' : 'No production records found.'}
+            </div>
+          ) : paginatedData.map((row, idx) => (
+            <div key={idx} style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px', borderBottom: idx === paginatedData.length - 1 ? 'none' : '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>{row.location}</span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleOpenModal(row)} style={{ padding: '6px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--white)', color: 'var(--text-muted)' }}><Edit2 size={14} /></button>
+                  <button onClick={() => handleDelete(row.location)} style={{ padding: '6px', borderRadius: 8, border: '1px solid #FFB0B0', background: '#FFF0F0', color: '#EF4444' }}><Trash2 size={14} /></button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ padding: '4px 10px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: 'var(--green-light)', color: '#3E6B22' }}>
+                  Good: {formatQuantityDisplay(row.goodQuantity)}
+                </span>
+                <span style={{ padding: '4px 10px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: 'var(--pink)', color: '#8B2E2E' }}>
+                  Damaged: {formatQuantityDisplay(row.damagedQuantity)}
+                </span>
+                <span style={{ padding: '4px 10px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: '#E0F2FE', color: '#0369A1' }}>
+                  Big: {formatQuantityDisplay(row.bigQuantity)}
+                </span>
+                <span style={{ padding: '4px 10px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: '#FEF3C7', color: '#B45309' }}>
+                  Small: {formatQuantityDisplay(row.smallQuantity)}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Pagination Controls */}

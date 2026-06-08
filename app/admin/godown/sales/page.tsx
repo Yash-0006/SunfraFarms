@@ -30,26 +30,37 @@ export default function SalesPage() {
   const [smallTrays, setSmallTrays] = useState('');
   const [smallLoose, setSmallLoose] = useState('');
 
-  const fetchData = async (dateStr?: string, periodStr?: string) => {
+  const fetchData = async (dateStr?: string, periodStr?: string, query?: string) => {
     setIsLoading(true);
     try {
-      let url = '/api/sales';
-      const params = new URLSearchParams();
-      if (dateStr) params.set('date', dateStr);
-      else if (periodStr) params.set('period', periodStr);
-      
-      const q = params.toString();
-      if (q) url += `?${q}`;
+      if (query && query.trim() !== '') {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        if (res.ok) setData(await res.json());
+      } else {
+        let url = '/api/sales';
+        const params = new URLSearchParams();
+        if (dateStr) params.set('date', dateStr);
+        else if (periodStr) params.set('period', periodStr);
+        
+        const q = params.toString();
+        if (q) url += `?${q}`;
 
-      const res = await fetch(url);
-      if (res.ok) setData(await res.json());
+        const res = await fetch(url);
+        if (res.ok) setData(await res.json());
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     }
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchData(dateFilter, periodFilter); }, [dateFilter, periodFilter]);
+  // Debounce the search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData(dateFilter, periodFilter, searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, dateFilter, periodFilter]);
 
   // Check for pending form fill on mount
   useEffect(() => {
@@ -185,15 +196,21 @@ export default function SalesPage() {
     });
   };
 
-  const filteredData = data.filter(row =>
-    row.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredData = data;
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
   const paginatedData = filteredData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <style>{`
+        .mobile-card-view { display: none; }
+        .desktop-table-view { display: block; overflow-x: auto; }
+        @media (max-width: 768px) {
+          .mobile-card-view { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+          .desktop-table-view { display: none; }
+        }
+      `}</style>
       {/* Page header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }} className="animate-fadeup">
         <div>
@@ -209,18 +226,18 @@ export default function SalesPage() {
       {/* Table card */}
       <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }} className="animate-fadeup">
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
+          <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 200 }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               className="input"
-              style={{ paddingLeft: 36 }}
+              style={{ paddingLeft: 36, width: '100%' }}
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search buyer…"
             />
           </div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', flex: '1 1 auto', justifyContent: 'flex-end' }}>
             <CustomSelect
               value={periodFilter}
               onChange={(val) => {
@@ -246,7 +263,8 @@ export default function SalesPage() {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop Table View */}
+        <div className="desktop-table-view">
           <table className="data-table">
             <thead>
               <tr>
@@ -261,7 +279,7 @@ export default function SalesPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '60px 20px' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '60px 20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                       <div className="spinner" />
                       <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading sales records...</span>
@@ -331,6 +349,54 @@ export default function SalesPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="mobile-card-view">
+          {isLoading ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+              <div className="spinner" style={{ margin: '0 auto 12px' }} />
+              <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading records...</span>
+            </div>
+          ) : paginatedData.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--white)', borderRadius: 'var(--radius-lg)' }}>
+              {searchQuery ? 'No buyers match your search.' : 'No sales records found.'}
+            </div>
+          ) : paginatedData.map((row, idx) => (
+            <div key={idx} style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px', borderBottom: idx === paginatedData.length - 1 ? 'none' : '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', display: 'block' }}>{row.name}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {row.date ? (() => { const d = new Date(row.date); return isNaN(d.getTime()) ? '—' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })() : '—'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => handleOpenModal(row)} style={{ padding: '6px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--white)', color: 'var(--text-muted)' }}><Edit2 size={14} /></button>
+                  <button onClick={() => handleDelete(row.id)} style={{ padding: '6px', borderRadius: 8, border: '1px solid #FFB0B0', background: '#FFF0F0', color: '#EF4444' }}><Trash2 size={14} /></button>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {row.big_quantity > 0 && (
+                  <span style={{ padding: '4px 10px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: '#E0F2FE', color: '#0369A1' }}>
+                    Big: {formatQuantityDisplay(row.big_quantity)}
+                  </span>
+                )}
+                {row.small_quantity > 0 && (
+                  <span style={{ padding: '4px 10px', borderRadius: 99, fontSize: '12px', fontWeight: 700, background: '#FEF3C7', color: '#B45309' }}>
+                    Small: {formatQuantityDisplay(row.small_quantity)}
+                  </span>
+                )}
+              </div>
+              
+              {row.remarks && (
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', background: 'var(--grey-bg)', padding: '8px 12px', borderRadius: '8px' }}>
+                  {row.remarks}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* Pagination Controls */}

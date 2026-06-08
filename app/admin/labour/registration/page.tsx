@@ -148,6 +148,14 @@ export default function LabourRegistrationPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <style>{`
+        .mobile-card-view { display: none; }
+        .desktop-table-view { display: block; overflow-x: auto; }
+        @media (max-width: 768px) {
+          .mobile-card-view { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+          .desktop-table-view { display: none; }
+        }
+      `}</style>
       {/* Page header */}
       <div
         className="animate-fadeup"
@@ -167,11 +175,11 @@ export default function LabourRegistrationPage() {
       <div className="animate-fadeup" style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
         {/* Search bar */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', width: 280, maxWidth: '100%' }}>
+          <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 200 }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               className="input"
-              style={{ paddingLeft: 36 }}
+              style={{ paddingLeft: 36, width: '100%' }}
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -184,7 +192,8 @@ export default function LabourRegistrationPage() {
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
+        {/* Desktop Table View */}
+        <div className="desktop-table-view">
           <table className="data-table">
             <thead>
               <tr>
@@ -287,6 +296,59 @@ export default function LabourRegistrationPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="mobile-card-view">
+          {isLoading ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+              <div className="spinner" style={{ margin: '0 auto 12px' }} />
+              <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Loading workers…</span>
+            </div>
+          ) : paginatedWorkers.length === 0 ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--grey-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <User size={24} color="var(--text-muted)" />
+              </div>
+              <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                {searchQuery ? 'No workers match your search.' : 'No workers registered yet. Add your first worker!'}
+              </span>
+            </div>
+          ) : paginatedWorkers.map((worker, idx) => (
+            <div key={worker.id} style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px', borderBottom: idx === paginatedWorkers.length - 1 ? 'none' : '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>{worker.name}</span>
+                    <button
+                      onClick={() => handleToggleStatus(worker)}
+                      disabled={togglingId === worker.id}
+                      style={{
+                        position: 'relative', width: 36, height: 20, borderRadius: 99, border: 'none', cursor: togglingId === worker.id ? 'wait' : 'pointer',
+                        background: worker.status === 'active' ? '#4ADE80' : 'var(--grey-bg-2)', opacity: togglingId === worker.id ? 0.6 : 1, transition: 'background 0.2s, opacity 0.15s',
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', top: 2, left: worker.status === 'active' ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+                      }} />
+                    </button>
+                  </div>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block' }}>📞 {worker.mobile}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block' }}>💳 {worker.aadhar}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => openModal(worker)} style={{ padding: '6px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--white)', color: 'var(--text-muted)' }}><Edit2 size={14} /></button>
+                  <button onClick={() => handleDelete(worker.id)} style={{ padding: '6px', borderRadius: 8, border: '1px solid #FFB0B0', background: '#FFF0F0', color: '#EF4444' }}><Trash2 size={14} /></button>
+                </div>
+              </div>
+              
+              {worker.reference && (
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', background: 'var(--grey-bg)', padding: '8px 12px', borderRadius: '8px' }}>
+                  Ref: {worker.reference}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* Pagination */}

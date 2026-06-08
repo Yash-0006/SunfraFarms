@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import bcrypt from 'bcrypt';
+import { SignupSchema } from '@/lib/validations';
+import { z } from 'zod';
 
 export async function POST(request: Request) {
   try {
-    const { firstName, lastName, mobile, email, password } = await request.json();
+    const body = await request.json();
+    const result = SignupSchema.safeParse(body);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
+    }
+
+    const { firstName, lastName, mobile, email, password } = result.data;
 
     // 1. Check if user exists
     const existingUsers: any = await query('SELECT * FROM users WHERE email = ? OR mobile = ?', [email, mobile]);

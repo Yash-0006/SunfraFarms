@@ -52,14 +52,15 @@ export default function CustomSelect({ options, value, onChange, style }: Custom
           color: 'var(--text-primary)',
         }}
       >
-        <span>{selectedOption?.label}</span>
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedOption?.label}</span>
         <ChevronDown 
           size={14} 
           style={{ 
-            marginLeft: '8px', 
+            marginLeft: '6px', 
             color: 'var(--text-muted)',
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s'
+            transition: 'transform 0.2s',
+            flexShrink: 0
           }} 
         />
       </button>

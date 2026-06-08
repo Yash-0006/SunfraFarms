@@ -7,24 +7,10 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-
 // Define routes that don't require authentication
 const publicRoutes = ['/', '/api/auth/login', '/api/auth/signup', '/api/seed'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   const token = request.cookies.get('auth_token')?.value;
-
-  // If user is on login/signup and already has a token, redirect to dashboard
-  const isAuthRoute = pathname === '/';
-  if (isAuthRoute) {
-    if (token) {
-      try {
-        await jwtVerify(token, JWT_SECRET);
-        return NextResponse.redirect(new URL('/', request.url));
-      } catch (e) {
-        // Invalid token, allow access to auth page
-      }
-    }
-    return NextResponse.next();
-  }
 
   // Allow exact home page and other public routes
   if (pathname === '/' || publicRoutes.some(route => pathname.startsWith(route))) {

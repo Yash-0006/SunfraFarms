@@ -92,7 +92,7 @@ export default async function Home() {
       </div>
 
       {/* 3 Columns Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '24px', marginBottom: '32px' }}>
         
         {/* Column 1: Production */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
@@ -228,7 +228,7 @@ export default async function Home() {
       </div>
 
       {/* Quick links */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }} className="animate-fadeup">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '16px' }} className="animate-fadeup">
         {[
           { label: 'Record Production', desc: "Add today's egg collection by shed", href: '/admin/godown/production' },
           { label: 'Record Sales', desc: 'Log eggs sold to buyers', href: '/admin/godown/sales' },

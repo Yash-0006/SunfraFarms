@@ -60,14 +60,22 @@ export default function HeroSection() {
         minHeight: '400px',
         marginTop: 'auto',
       }}>
-        {/* We use an SVG mask or border radius for the curve. Simple border-top-left/right-radius for now */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          borderTopLeftRadius: '50% 100%',
-          borderTopRightRadius: '50% 100%',
-          overflow: 'hidden'
-        }}>
+        <style>{`
+          .hero-media-container {
+            position: absolute;
+            inset: 0;
+            border-top-left-radius: 50% 100%;
+            border-top-right-radius: 50% 100%;
+            overflow: hidden;
+          }
+          @media (max-width: 768px) {
+            .hero-media-container {
+              border-top-left-radius: 0 !important;
+              border-top-right-radius: 0 !important;
+            }
+          }
+        `}</style>
+        <div className="hero-media-container">
           <video
             src="/hero_video.mp4"
             autoPlay

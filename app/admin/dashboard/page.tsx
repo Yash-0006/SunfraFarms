@@ -74,6 +74,14 @@ export default function DashboardPage() {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <style>{`
+        .show-on-mobile { display: none; }
+        .hide-on-mobile { display: inline; }
+        @media (max-width: 600px) {
+          .show-on-mobile { display: inline !important; }
+          .hide-on-mobile { display: none !important; }
+        }
+      `}</style>
       {/* Page header */}
       <div style={{ marginBottom: '28px' }} className="animate-fadeup">
         <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
@@ -93,7 +101,7 @@ export default function DashboardPage() {
         </h3>
 
         {/* Charts Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px', alignItems: 'stretch', marginBottom: '24px' }} className="animate-fadeup">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '16px', alignItems: 'stretch', marginBottom: '24px' }} className="animate-fadeup">
         {/* Chart */}
         <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -114,7 +122,7 @@ export default function DashboardPage() {
               style={{ width: '130px' }}
             />
           </div>
-          <div style={{ flex: 1, minHeight: 280 }}>
+          <div style={{ flex: 1, minHeight: 280, minWidth: 0 }}>
             {filterData(chartData, prodPeriod).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={filterData(chartData, prodPeriod)} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -174,7 +182,7 @@ export default function DashboardPage() {
               style={{ width: '130px' }}
             />
           </div>
-          <div style={{ flex: 1, minHeight: 280 }}>
+          <div style={{ flex: 1, minHeight: 280, minWidth: 0 }}>
             {filterData(chartData, salesPeriod).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={filterData(chartData, salesPeriod)} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -206,7 +214,7 @@ export default function DashboardPage() {
       </div>
 
         {/* Recent Activity Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', alignItems: 'stretch' }} className="animate-fadeup">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '16px', alignItems: 'stretch' }} className="animate-fadeup">
           {/* Recent Production */}
           <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
@@ -221,18 +229,22 @@ export default function DashboardPage() {
                       {item.date ? (() => { const d = new Date(item.date); return isNaN(d.getTime()) ? '—' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })() : '—'}
                     </p>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, max-content)', gap: '6px', justifyContent: 'end' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-end', maxWidth: '70%' }}>
                     <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: 'var(--green-light)', color: '#3E6B22', textAlign: 'center' }}>
-                      Good: {formatTraysLooseDisplay(item.goodQuantity)}
+                      <span className="hide-on-mobile">Good: {formatTraysLooseDisplay(item.goodQuantity)}</span>
+                      <span className="show-on-mobile">Good: {formatQuantityDisplay(item.goodQuantity)}</span>
                     </span>
                     <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: 'var(--pink)', color: '#8B2E2E', textAlign: 'center' }}>
-                      Damaged: {formatTraysLooseDisplay(item.damagedQuantity)}
+                      <span className="hide-on-mobile">Damaged: {formatTraysLooseDisplay(item.damagedQuantity)}</span>
+                      <span className="show-on-mobile">Damaged: {formatQuantityDisplay(item.damagedQuantity)}</span>
                     </span>
                     <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: '#E0F2FE', color: '#0369A1', textAlign: 'center' }}>
-                      Big: {formatTraysLooseDisplay(item.bigQuantity)}
+                      <span className="hide-on-mobile">Big: {formatTraysLooseDisplay(item.bigQuantity)}</span>
+                      <span className="show-on-mobile">Big: {formatQuantityDisplay(item.bigQuantity)}</span>
                     </span>
                     <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: '#FEF3C7', color: '#B45309', textAlign: 'center' }}>
-                      Small: {formatTraysLooseDisplay(item.smallQuantity)}
+                      <span className="hide-on-mobile">Small: {formatTraysLooseDisplay(item.smallQuantity)}</span>
+                      <span className="show-on-mobile">Small: {formatQuantityDisplay(item.smallQuantity)}</span>
                     </span>
                   </div>
                 </div>
@@ -261,12 +273,14 @@ export default function DashboardPage() {
                       {item.date ? (() => { const d = new Date(item.date); return isNaN(d.getTime()) ? '—' : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; })() : '—'}
                     </p>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, max-content)', gap: '6px', justifyContent: 'end' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-end', maxWidth: '70%' }}>
                     <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#E0F2FE', color: '#0369A1' }}>
-                      Big: {formatTraysLooseDisplay(item.big_quantity)}
+                      <span className="hide-on-mobile">Big: {formatTraysLooseDisplay(item.big_quantity)}</span>
+                      <span className="show-on-mobile">Big: {formatQuantityDisplay(item.big_quantity)}</span>
                     </span>
                     <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: 99, background: '#FEF3C7', color: '#B45309' }}>
-                      Small: {formatTraysLooseDisplay(item.small_quantity)}
+                      <span className="hide-on-mobile">Small: {formatTraysLooseDisplay(item.small_quantity)}</span>
+                      <span className="show-on-mobile">Small: {formatQuantityDisplay(item.small_quantity)}</span>
                     </span>
                   </div>
                 </div>
@@ -290,7 +304,7 @@ export default function DashboardPage() {
         </h3>
 
         {/* Labour Analytics Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px', alignItems: 'stretch', marginBottom: '24px' }} className="animate-fadeup">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '16px', alignItems: 'stretch', marginBottom: '24px' }} className="animate-fadeup">
         {/* Labour Stats */}
         <div style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', padding: '24px', display: 'flex', flexDirection: 'column' }}>
           <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '20px' }}>
@@ -336,7 +350,7 @@ export default function DashboardPage() {
               style={{ width: '130px' }}
             />
           </div>
-          <div style={{ flex: 1, minHeight: 280 }}>
+          <div style={{ flex: 1, minHeight: 280, minWidth: 0 }}>
             {filterData(chartData, attPeriod).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={filterData(chartData, attPeriod)} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>

@@ -61,7 +61,7 @@ export default async function LabourPage() {
       </div>
 
       {/* 3-column stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '24px', marginBottom: '32px' }}>
 
         {/* Col 1: Workers */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
@@ -176,7 +176,7 @@ export default async function LabourPage() {
       </div>
 
       {/* Quick links */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }} className="animate-fadeup">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '16px' }} className="animate-fadeup">
         {[
           { label: 'Worker Registration', desc: 'Add, edit and manage worker records', href: '/admin/labour/registration' },
           { label: 'Attendance Register', desc: 'Mark daily P / A / P/2 for all workers', href: '/admin/labour/attendance' },

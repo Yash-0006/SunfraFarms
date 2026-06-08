@@ -1,0 +1,36 @@
+name: Sunfra Farms CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Run Linter & Zod Checks
+      run: npm run lint
+
+    - name: Test Next.js Build
+      run: npm run build
+      env:
+        # We disable telemetry to speed up the automated build
+        NEXT_TELEMETRY_DISABLED: 1
+        # We provide dummy environment variables so the build doesn't crash if it checks for them
+        DATABASE_URL: "mysql://dummy:dummy@localhost:3306/dummy"
+        JWT_SECRET: "dummy_secret"

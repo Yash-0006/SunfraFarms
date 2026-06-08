@@ -1,9 +1,28 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { parseToTotalEggs, normalizeQuantity } from '@/lib/quantity-utils';
+import { redis } from '@/lib/redis';
 
 export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const period = searchParams.get('period') || 'all';
+    
+    // 1. Try to fetch from Redis Cache
+    const cacheKey = `dashboard_stats_${period}`;
+    if (redis.status === 'ready') {
+      try {
+        const cachedData = await redis.get(cacheKey);
+        if (cachedData) {
+          console.log(`[Cache Hit] Serving dashboard for period: ${period}`);
+          return NextResponse.json(JSON.parse(cachedData));
+        }
+      } catch (redisError) {
+        console.warn('Redis cache read failed, falling back to DB calculation:', redisError);
+      }
+    }
+
+    console.log(`[Cache Miss] Calculating heavy SQL for period: ${period}...`);
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
@@ -93,9 +112,7 @@ export async function GET(request: Request) {
       chartDataMap[dateStr].smallSales += smallEggs;
     });
 
-    const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'all';
-
+    // period is already extracted at the top
     let daysToInclude = 3650; // 10 years by default
     if (period === '7d') daysToInclude = 7;
     else if (period === '1m') daysToInclude = 30;
@@ -201,7 +218,18 @@ export async function GET(request: Request) {
         };
       });
 
-    return NextResponse.json({ metrics, chartData, recentProduction, recentSales, todayAbsentees });
+    const responseData = { metrics, chartData, recentProduction, recentSales, todayAbsentees };
+
+    // 2. Save calculation to Redis Cache for 60 seconds
+    if (redis.status === 'ready') {
+      try {
+        await redis.set(cacheKey, JSON.stringify(responseData), 'EX', 60);
+      } catch (redisError) {
+        console.warn('Redis cache save failed:', redisError);
+      }
+    }
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
     return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 });

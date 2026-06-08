@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sunfrafarms_web
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=mysql://root:sunfra@host.docker.internal:3306/sunfrafarms
+      - REDIS_URL=redis://redis:6379
+      - MEILISEARCH_HOST=http://search:7700
+      - MEILISEARCH_API_KEY=masterKey123
+      - JWT_SECRET=fallback-secret-do-not-use-in-prod
+    depends_on:
+      redis:
+        condition: service_started
+      search:
+        condition: service_started
+    networks:
+      - sunfra_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: sunfrafarms_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sunfra_net
+
+  search:
+    image: getmeili/meilisearch:v1.7
+    container_name: sunfrafarms_search
+    restart: always
+    environment:
+      - MEILI_MASTER_KEY=masterKey123
+      - MEILI_NO_ANALYTICS=true
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+    networks:
+      - sunfra_net
+
+networks:
+  sunfra_net:
+    driver: bridge
+
+volumes:
+  db_data:
+  redis_data:
+  meili_data:

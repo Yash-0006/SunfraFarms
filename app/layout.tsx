@@ -11,8 +11,11 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Sufra Farms — Farm Management",
-  description: "Manage egg production and sales for Sufra Farms.",
+  title: "SunfraFarms",
+  description: "Manage egg production and sales for SunfraFarms.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({

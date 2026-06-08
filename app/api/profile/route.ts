@@ -3,6 +3,8 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 import { query } from '@/lib/db';
 import bcrypt from 'bcrypt';
+import { ProfileUpdateSchema } from '@/lib/validations';
+import { z } from 'zod';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret-do-not-use-in-prod');
 
@@ -41,7 +43,14 @@ export async function PUT(request: NextRequest) {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     const userId = payload.userId;
 
-    const { firstName, lastName, email, mobile, password } = await request.json();
+    const body = await request.json();
+    const result = ProfileUpdateSchema.safeParse(body);
+    
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
+    }
+
+    const { firstName, lastName, email, mobile, password } = result.data;
 
     if (password && password.trim() !== '') {
       const hashedPassword = await bcrypt.hash(password, 10);

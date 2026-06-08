@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAiPageContext } from './AiPageContext';
+import { useUserStore } from '@/lib/store';
 
 interface Message {
   id: string;
@@ -27,15 +28,13 @@ export default function AiChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pulseVisible, setPulseVisible] = useState(true);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0, initX: 0, initY: 0 });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
 
   const aiContext = useAiPageContext();
+  const { isAiVisible } = useUserStore();
 
   // Load messages from sessionStorage
   useEffect(() => {
@@ -212,6 +211,8 @@ export default function AiChat() {
       .replace(/\n/g, '<br/>');
   };
 
+  if (!isAiVisible) return null;
+
   return (
     <>
       {/* Chat Panel */}
@@ -230,8 +231,7 @@ export default function AiChat() {
           borderRadius: 'var(--radius-xl)',
           boxShadow: isOpen ? '0 12px 48px rgba(0,0,0,0.12), 0 0 0 1px var(--border)' : 'none',
           overflow: 'hidden',
-          transform: `translate(${offset.x}px, ${offset.y}px)`,
-          transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
           zIndex: 999,
@@ -556,50 +556,32 @@ export default function AiChat() {
       {/* Floating Action Button */}
       <button
         id="ai-chat-toggle"
-        onPointerDown={(e) => {
-          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-          dragStart.current = { x: e.clientX, y: e.clientY, initX: offset.x, initY: offset.y };
-          setIsDragging(true);
-        }}
-        onPointerMove={(e) => {
-          if (!isDragging) return;
-          const dx = e.clientX - dragStart.current.x;
-          const dy = e.clientY - dragStart.current.y;
-          setOffset({ x: dragStart.current.initX + dx, y: dragStart.current.initY + dy });
-        }}
-        onPointerUp={(e) => {
-          setIsDragging(false);
-          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-        }}
-        onClick={(e) => {
-          if (Math.abs(e.clientX - dragStart.current.x) < 5 && Math.abs(e.clientY - dragStart.current.y) < 5) {
-            setIsOpen(prev => !prev);
-          }
-        }}
-        title="SunfraFarms AI Assistant (Drag to move, Click to open, Ctrl+J)"
+        onClick={() => setIsOpen(prev => !prev)}
+        title="SunfraFarms AI Assistant (Click to open, Ctrl+J)"
         style={{
           position: 'fixed',
           bottom: 24,
           right: 24,
-          transform: `translate(${offset.x}px, ${offset.y}px)`,
           width: 56,
           height: 56,
           borderRadius: 'var(--radius-lg)',
-          background: 'var(--primary)',
+          background: '#111',
           border: 'none',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: '0 8px 32px rgba(19, 23, 31, 0.2)',
-          transition: isDragging ? 'none' : 'background 0.3s, box-shadow 0.3s',
+          transition: 'background 0.3s, box-shadow 0.3s, transform 0.2s',
           zIndex: 1000,
         }}
+        onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
+        onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
       >
         {isOpen ? (
-          <X size={24} color="#fff" />
+          <X size={24} color="#C8F096" />
         ) : (
-          <Sparkles size={24} color="#fff" />
+          <Sparkles size={24} color="#C8F096" />
         )}
 
         {/* Pulse ring */}
@@ -608,7 +590,7 @@ export default function AiChat() {
             position: 'absolute',
             inset: -4,
             borderRadius: 'calc(var(--radius-lg) + 4px)',
-            border: '2px solid var(--primary)',
+            border: '2px solid #111',
             animation: 'ai-pulse 2s ease-in-out infinite',
           }} />
         )}

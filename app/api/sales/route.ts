@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { normalizeQuantity, parseToTotalEggs } from '@/lib/quantity-utils';
+import { searchClient, SALES_INDEX } from '@/lib/search';
 
 export async function GET(request: Request) {
   try {
@@ -53,7 +54,22 @@ export async function POST(request: Request) {
       [name, normalizedBigQty, normalizedSmallQty, remarks]
     );
 
-    return NextResponse.json({ success: true, insertedId: (result as any).insertId });
+    const insertedId = (result as any).insertId;
+
+    try {
+      await searchClient.index(SALES_INDEX).addDocuments([{
+        id: insertedId,
+        name, 
+        remarks,
+        big_quantity: normalizedBigQty,
+        small_quantity: normalizedSmallQty,
+        date: new Date().toISOString().split('T')[0]
+      }]);
+    } catch (err) {
+      console.warn('Meilisearch sync failed:', err);
+    }
+
+    return NextResponse.json({ success: true, insertedId });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'Failed to save sales data' }, { status: 500 });
@@ -76,6 +92,18 @@ export async function PUT(request: Request) {
       [name, normalizedBigQty, normalizedSmallQty, remarks, id]
     );
 
+    try {
+      await searchClient.index(SALES_INDEX).updateDocuments([{
+        id,
+        name, 
+        remarks,
+        big_quantity: normalizedBigQty,
+        small_quantity: normalizedSmallQty
+      }]);
+    } catch (err) {
+      console.warn('Meilisearch sync failed:', err);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);
@@ -92,6 +120,12 @@ export async function DELETE(request: Request) {
     await query(
       'DELETE FROM egg_sale WHERE id = ?', [id]
     );
+
+    try {
+      await searchClient.index(SALES_INDEX).deleteDocument(id);
+    } catch (err) {
+      console.warn('Meilisearch sync failed:', err);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

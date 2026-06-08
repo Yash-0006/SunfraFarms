@@ -43,6 +43,34 @@ export default function AttendancePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startY, setStartY] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!tableScrollRef.current) return;
+    if ((e.target as HTMLElement).closest('button')) return; // don't drag if clicking buttons
+    setIsDragging(true);
+    setStartX(e.pageX - tableScrollRef.current.offsetLeft);
+    setStartY(e.pageY - tableScrollRef.current.offsetTop);
+    setScrollLeft(tableScrollRef.current.scrollLeft);
+    setScrollTop(tableScrollRef.current.scrollTop);
+  };
+  const onMouseLeave = () => setIsDragging(false);
+  const onMouseUp = () => setIsDragging(false);
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !tableScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - tableScrollRef.current.offsetLeft;
+    const y = e.pageY - tableScrollRef.current.offsetTop;
+    const walkX = (x - startX) * 1.5;
+    const walkY = (y - startY) * 1.5;
+    tableScrollRef.current.scrollLeft = scrollLeft - walkX;
+    tableScrollRef.current.scrollTop = scrollTop - walkY;
+  };
+
   const scrollTable = (dir: -1 | 1) => {
     if (tableScrollRef.current) {
       tableScrollRef.current.scrollBy({ left: dir * 220, behavior: 'smooth' });
@@ -140,17 +168,45 @@ export default function AttendancePage() {
 
   return (
     <div style={{ maxWidth: '100%' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .search-container { flex: 1 1 200px !important; max-width: 100% !important; width: 100% !important; }
+          .search-input { width: 100% !important; }
+          .sticky-right { position: static !important; border-left: none !important; }
+          .worker-name-col { min-width: 90px !important; width: 90px !important; white-space: normal !important; word-wrap: break-word; font-size: 11px !important; padding: 6px 8px !important; line-height: 1.2 !important; }
+          .scroll-arrow-col { display: none !important; }
+          .month-nav { width: 100% !important; justify-content: space-between !important; }
+          .legend-container { gap: 8px !important; overflow-x: auto !important; padding-bottom: 4px !important; flex-wrap: nowrap !important; }
+          .legend-item { font-size: 11px !important; white-space: nowrap !important; flex-shrink: 0; }
+        }
+      `}</style>
       {/* Page header */}
-      <div className="animate-fadeup" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Attendance Register</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Click any cell to cycle: <strong style={{ color: '#3A6B1A' }}>P</strong> → <strong style={{ color: '#9B1313' }}>A</strong> → <strong style={{ color: '#7C4B00' }}>P/2</strong> → blank
-          </p>
+      <div className="animate-fadeup" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Attendance Register</h2>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Click any cell to cycle: <strong style={{ color: '#3A6B1A' }}>P</strong> → <strong style={{ color: '#9B1313' }}>A</strong> → <strong style={{ color: '#7C4B00' }}>P/2</strong> → blank
+            </p>
+          </div>
+          
+          {/* Legend (Moved Up) */}
+          <div className="legend-container" style={{ display: 'flex', gap: 12, flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: 4, alignItems: 'center' }}>
+            {[
+              { label: 'Present (P)', bg: 'var(--green-light)', color: '#3A6B1A' },
+              { label: 'Absent (A)', bg: 'var(--pink)', color: '#9B1313' },
+              { label: 'Half Day (P/2)', bg: 'var(--champagne)', color: '#7C4B00' },
+            ].map(item => (
+              <div key={item.label} className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 600, color: item.color, whiteSpace: 'nowrap' }}>
+                <span style={{ width: 14, height: 14, borderRadius: 4, background: item.bg, display: 'inline-block', flexShrink: 0 }} />
+                {item.label}
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Month navigator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '6px 8px' }}>
+        {/* Month navigator (Moved Down & Full Width on Mobile) */}
+        <div className="month-nav" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '6px 8px', alignSelf: 'flex-start' }}>
           <button
             onClick={() => navigateMonth(-1)}
             style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'background 0.15s' }}
@@ -159,7 +215,7 @@ export default function AttendancePage() {
           >
             <ChevronLeft size={16} />
           </button>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', minWidth: 120, textAlign: 'center' }}>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', minWidth: 120, textAlign: 'center', flex: 1 }}>
             {monthName} {viewYear}
           </span>
           <button
@@ -174,29 +230,15 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="animate-fadeup-2" style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Present (P)', bg: 'var(--green-light)', color: '#3A6B1A' },
-          { label: 'Absent (A)', bg: 'var(--pink)', color: '#9B1313' },
-          { label: 'Half Day (P/2)', bg: 'var(--champagne)', color: '#7C4B00' },
-        ].map(item => (
-          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12px', fontWeight: 600, color: item.color }}>
-            <span style={{ width: 14, height: 14, borderRadius: 4, background: item.bg, display: 'inline-block' }} />
-            {item.label}
-          </div>
-        ))}
-      </div>
-
       {/* Attendance grid card */}
       <div className="animate-fadeup-2" style={{ background: 'var(--white)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
 
         {/* Search + count bar + scroll controls */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', width: 280, maxWidth: '100%' }}>
+          <div className="search-container" style={{ position: 'relative', width: 280, maxWidth: '100%' }}>
             <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
-              className="input"
+              className="input search-input"
               style={{ paddingLeft: 36 }}
               type="text"
               value={searchQuery}
@@ -210,7 +252,14 @@ export default function AttendancePage() {
           </span>
         </div>
 
-        <div ref={tableScrollRef} style={{ overflowX: 'auto' }}>
+        <div 
+          ref={tableScrollRef} 
+          style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '65vh', cursor: isDragging ? 'grabbing' : 'auto' }}
+          onMouseDown={onMouseDown}
+          onMouseLeave={onMouseLeave}
+          onMouseUp={onMouseUp}
+          onMouseMove={onMouseMove}
+        >
           {isLoading ? (
             <div style={{ padding: '60px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
               <div className="spinner" />
@@ -236,7 +285,7 @@ export default function AttendancePage() {
                 <tr style={{ borderBottom: '2px solid var(--border)' }}>
 
                   {/* Sticky: Worker Name */}
-                  <th style={{
+                  <th className="worker-name-col" style={{
                     padding: '10px 16px',
                     textAlign: 'left',
                     fontWeight: 800,
@@ -246,8 +295,9 @@ export default function AttendancePage() {
                     color: '#000',
                     background: 'var(--white)',
                     position: 'sticky',
+                    top: 0,
                     left: 0,
-                    zIndex: 3,
+                    zIndex: 4,
                     minWidth: 160,
                     borderRight: '2px solid var(--border)',
                     whiteSpace: 'nowrap',
@@ -256,14 +306,15 @@ export default function AttendancePage() {
                   </th>
 
                   {/* Sticky: Left scroll arrow — sits right after name column */}
-                  <th style={{
+                  <th className="scroll-arrow-col" style={{
                     padding: '0 4px',
                     width: 32,
                     minWidth: 32,
                     background: 'var(--white)',
                     position: 'sticky',
+                    top: 0,
                     left: 160,
-                    zIndex: 3,
+                    zIndex: 4,
                     borderRight: '1px solid var(--border)',
                     textAlign: 'center',
                   }}>
@@ -305,10 +356,13 @@ export default function AttendancePage() {
                         fontWeight: isToday ? 800 : 600,
                         fontSize: '11px',
                         color: isToday ? 'var(--primary)' : (isSun ? '#EF4444' : '#000'),
-                        background: isToday ? 'rgba(19,23,31,0.04)' : 'transparent',
+                        background: isToday ? '#F8FAFC' : 'var(--white)',
                         minWidth: 40,
                         maxWidth: 44,
                         borderBottom: isToday ? '2px solid var(--primary)' : undefined,
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 3,
                       }}>
                         <div>{day}</div>
                         <div style={{ fontSize: '9px', opacity: 0.7, fontWeight: 500, textTransform: 'uppercase' }}>{dow}</div>
@@ -317,14 +371,15 @@ export default function AttendancePage() {
                   })}
 
                   {/* Sticky: Right scroll arrow — sits right before Total P */}
-                  <th style={{
+                  <th className="scroll-arrow-col" style={{
                     padding: '0 4px',
                     width: 32,
                     minWidth: 32,
                     background: 'var(--white)',
                     position: 'sticky',
+                    top: 0,
                     right: 60,
-                    zIndex: 3,
+                    zIndex: 4,
                     borderLeft: '1px solid var(--border)',
                     textAlign: 'center',
                   }}>
@@ -354,7 +409,7 @@ export default function AttendancePage() {
                   </th>
 
                   {/* Sticky: Total P */}
-                  <th style={{
+                  <th className="sticky-right" style={{
                     padding: '10px 8px',
                     textAlign: 'center',
                     fontWeight: 800,
@@ -366,8 +421,9 @@ export default function AttendancePage() {
                     width: 60,
                     background: 'var(--white)',
                     position: 'sticky',
+                    top: 0,
                     right: 0,
-                    zIndex: 3,
+                    zIndex: 4,
                     borderLeft: '2px solid var(--border)',
                   }}>Total P</th>
 
@@ -382,13 +438,13 @@ export default function AttendancePage() {
                     if (s === 'P') presentCount++;
                     else if (s === 'P/2') presentCount += 0.5;
                   });
-                  const rowBg = workerIdx % 2 === 0 ? 'var(--white)' : 'rgba(239,239,245,0.3)';
+                  const rowBg = workerIdx % 2 === 0 ? 'var(--white)' : '#F7F7FA';
 
                   return (
                     <tr key={worker.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
 
                       {/* Sticky: Name */}
-                      <td style={{
+                      <td className="worker-name-col" style={{
                         padding: '8px 16px',
                         fontWeight: 600,
                         color: 'var(--text-primary)',
@@ -404,7 +460,7 @@ export default function AttendancePage() {
                       </td>
 
                       {/* Sticky: Left arrow placeholder cell */}
-                      <td style={{
+                      <td className="scroll-arrow-col" style={{
                         background: rowBg,
                         position: 'sticky',
                         left: 160,
@@ -463,7 +519,7 @@ export default function AttendancePage() {
                       })}
 
                       {/* Sticky: Right arrow placeholder cell */}
-                      <td style={{
+                      <td className="scroll-arrow-col" style={{
                         background: rowBg,
                         position: 'sticky',
                         right: 60,
@@ -473,7 +529,7 @@ export default function AttendancePage() {
                       }} />
 
                       {/* Sticky: Total P */}
-                      <td style={{
+                      <td className="sticky-right" style={{
                         padding: '8px',
                         textAlign: 'center',
                         fontWeight: 700,
@@ -498,7 +554,7 @@ export default function AttendancePage() {
               {!searchQuery && (
                 <tfoot>
                   <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--white)' }}>
-                    <td style={{
+                    <td className="worker-name-col" style={{
                       padding: '10px 16px',
                       fontWeight: 800,
                       fontSize: '11px',
@@ -515,7 +571,7 @@ export default function AttendancePage() {
                       Summary
                     </td>
                     {/* Left arrow placeholder */}
-                    <td style={{ background: 'var(--white)', position: 'sticky', left: 160, zIndex: 1, borderRight: '1px solid var(--border)' }} />
+                    <td className="scroll-arrow-col" style={{ background: 'var(--white)', position: 'sticky', left: 160, zIndex: 1, borderRight: '1px solid var(--border)' }} />
                     {daySummary.map((s, i) => (
                       <td key={i} style={{ padding: '4px 2px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
@@ -527,8 +583,8 @@ export default function AttendancePage() {
                       </td>
                     ))}
                     {/* Right arrow placeholder */}
-                    <td style={{ background: 'var(--white)', position: 'sticky', right: 60, zIndex: 1, borderLeft: '1px solid var(--border)' }} />
-                    <td style={{ borderLeft: '2px solid var(--border)', background: 'var(--white)', position: 'sticky', right: 0, zIndex: 1 }} />
+                    <td className="scroll-arrow-col" style={{ background: 'var(--white)', position: 'sticky', right: 60, zIndex: 1, borderLeft: '1px solid var(--border)' }} />
+                    <td className="sticky-right" style={{ borderLeft: '2px solid var(--border)', background: 'var(--white)', position: 'sticky', right: 0, zIndex: 1 }} />
                   </tr>
                 </tfoot>
               )}

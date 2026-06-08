@@ -1,7 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Lock, Save, Edit2, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Phone, Lock, Save, Edit2, Eye, EyeOff, Check } from 'lucide-react';
+import { useUserStore } from '@/lib/store';
+
+const RULES = [
+  { key: 'length', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { key: 'upper', label: 'One uppercase letter (A–Z)', test: (p: string) => /[A-Z]/.test(p) },
+  { key: 'lower', label: 'One lowercase letter (a–z)', test: (p: string) => /[a-z]/.test(p) },
+  { key: 'number', label: 'One number (0–9)', test: (p: string) => /[0-9]/.test(p) },
+  { key: 'symbol', label: 'One symbol (!@#$%^&*…)', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+];
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState({
@@ -19,6 +28,8 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  
+  const { setProfile: setGlobalProfile } = useUserStore();
 
   useEffect(() => {
     fetchProfile();
@@ -46,8 +57,16 @@ export default function SettingsPage() {
     }
   };
 
+  const passwordRules = RULES.map(r => ({ ...r, ok: r.test(profile.password) }));
+  const allRulesOk = passwordRules.every(r => r.ok);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isChangingPassword && profile.password && !allRulesOk) {
+      setMessage({ type: 'error', text: 'Please ensure your new password meets all the requirements.' });
+      return;
+    }
+    
     setIsSaving(true);
     setMessage({ type: '', text: '' });
 
@@ -61,11 +80,19 @@ export default function SettingsPage() {
 
       if (res.ok) {
         setMessage({ type: 'success', text: 'Profile updated successfully!' });
+        
+        // Update global Zustand store instantly
+        setGlobalProfile({
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          email: profile.email,
+          mobile: profile.mobile
+        });
+
         setProfile(prev => ({ ...prev, password: '' })); // clear password
         setIsEditing(false);
         setIsChangingPassword(false);
-        // Dispatch an event so the Topbar can listen and update
-        window.dispatchEvent(new Event('profileUpdated'));
+        
         setTimeout(() => setMessage({ type: '', text: '' }), 3000); // Clear success message after 3s
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to update profile.' });
@@ -88,7 +115,15 @@ export default function SettingsPage() {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }} className="animate-fadeup">
+      <style>{`
+        .show-on-mobile { display: none; }
+        .hide-on-mobile { display: inline; }
+        @media (max-width: 600px) {
+          .show-on-mobile { display: inline !important; }
+          .hide-on-mobile { display: none !important; }
+        }
+      `}</style>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }} className="animate-fadeup">
         <div>
           <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Profile Settings
@@ -126,7 +161,7 @@ export default function SettingsPage() {
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* Name Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '20px' }}>
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
                 <User size={14} /> First Name
@@ -140,7 +175,7 @@ export default function SettingsPage() {
                   required 
                 />
               ) : (
-                <p style={{ fontSize: '14px', fontWeight: 500, padding: '10px 14px', background: 'var(--grey-bg)', borderRadius: 'var(--radius-md)', border: '1px solid transparent' }}>
+                <p style={{ fontSize: '14px', fontWeight: 500, padding: '10px 14px', background: 'var(--grey-bg)', borderRadius: 'var(--radius-md)', border: '1px solid transparent', wordBreak: 'break-word' }}>
                   {profile.firstName}
                 </p>
               )}
@@ -158,7 +193,7 @@ export default function SettingsPage() {
                   required 
                 />
               ) : (
-                <p style={{ fontSize: '14px', fontWeight: 500, padding: '10px 14px', background: 'var(--grey-bg)', borderRadius: 'var(--radius-md)', border: '1px solid transparent' }}>
+                <p style={{ fontSize: '14px', fontWeight: 500, padding: '10px 14px', background: 'var(--grey-bg)', borderRadius: 'var(--radius-md)', border: '1px solid transparent', wordBreak: 'break-word' }}>
                   {profile.lastName}
                 </p>
               )}
@@ -166,7 +201,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Contact Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '20px' }}>
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>
                 <Mail size={14} /> Email Address
@@ -180,7 +215,7 @@ export default function SettingsPage() {
                   required 
                 />
               ) : (
-                <p style={{ fontSize: '14px', fontWeight: 500, padding: '10px 14px', background: 'var(--grey-bg)', borderRadius: 'var(--radius-md)', border: '1px solid transparent' }}>
+                <p style={{ fontSize: '14px', fontWeight: 500, padding: '10px 14px', background: 'var(--grey-bg)', borderRadius: 'var(--radius-md)', border: '1px solid transparent', wordBreak: 'break-word' }}>
                   {profile.email}
                 </p>
               )}
@@ -198,7 +233,7 @@ export default function SettingsPage() {
                   required 
                 />
               ) : (
-                <p style={{ fontSize: '14px', fontWeight: 500, padding: '10px 14px', background: 'var(--grey-bg)', borderRadius: 'var(--radius-md)', border: '1px solid transparent' }}>
+                <p style={{ fontSize: '14px', fontWeight: 500, padding: '10px 14px', background: 'var(--grey-bg)', borderRadius: 'var(--radius-md)', border: '1px solid transparent', wordBreak: 'break-word' }}>
                   {profile.mobile}
                 </p>
               )}
@@ -243,6 +278,28 @@ export default function SettingsPage() {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+
+                {profile.password.length > 0 && (
+                  <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px', paddingLeft: '4px' }}>
+                    {passwordRules.map(rule => (
+                      <div key={rule.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: rule.ok ? 'var(--primary)' : 'transparent',
+                          border: `1px solid ${rule.ok ? 'var(--primary)' : '#D1D5DB'}`,
+                          transition: 'all 0.2s',
+                        }}>
+                          {rule.ok && <Check size={8} color="#fff" strokeWidth={4} />}
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: 500, color: rule.ok ? 'var(--primary)' : 'var(--text-muted)' }}>
+                          {rule.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <button 
                   type="button" 
                   onClick={() => { setIsChangingPassword(false); setProfile({...profile, password: ''}); }} 
@@ -268,9 +325,14 @@ export default function SettingsPage() {
               >
                 Cancel
               </button>
-              <button type="submit" className="btn-primary" disabled={isSaving}>
+              <button type="submit" className="btn-primary" disabled={isSaving || (isChangingPassword && profile.password.length > 0 && !allRulesOk)}>
                 <Save size={16} />
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isSaving ? 'Saving...' : (
+                  <>
+                    <span className="hide-on-mobile">Save Changes</span>
+                    <span className="show-on-mobile">Save</span>
+                  </>
+                )}
               </button>
             </div>
           )}
